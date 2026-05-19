@@ -51,8 +51,8 @@
     ],
     "description_suffix": "\n\n#Shorts",
     "publish_offset_minutes": 30,
-    "subtitle_font_size": 24,
-    "subtitle_margin_v": 150,
+    "subtitle_font_size": 16,
+    "subtitle_margin_v": 55,
     "use_synced_subtitles": true
   },
   "collection": {
