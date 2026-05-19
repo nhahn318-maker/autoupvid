@@ -265,8 +265,6 @@ def render_short(track, output_dir: Path, config) -> Path:
     for key in [
         "subtitle_font_size",
         "subtitle_margin_v",
-        "subtitle_words_per_chunk",
-        "subtitle_max_chars_per_chunk",
         "use_synced_subtitles",
     ]:
         if key in shorts:
