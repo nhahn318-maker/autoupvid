@@ -279,15 +279,22 @@ def build_subtitle_filter(
     duration: float,
     render_config: dict[str, Any],
 ) -> str:
+    srt_path = track.audio_path.with_suffix(".auto.srt")
+    if srt_path.exists() and Path(f"{srt_path}.synced").exists():
+        return subtitle_style_filter(srt_path, height, render_config)
+
     transcript_path = track.audio_path.with_suffix(".txt")
     if not transcript_path.exists() or duration <= 1:
         return ""
     text = transcript_path.read_text(encoding="utf-8-sig").strip()
-    chunks = transcript_chunks(text, int(render_config.get("subtitle_words_per_chunk", 10)))
+    chunks = transcript_chunks(
+        text,
+        int(render_config.get("subtitle_words_per_chunk", 18)),
+        int(render_config.get("subtitle_max_chars_per_chunk", 82)),
+    )
     if not chunks:
         return ""
 
-    srt_path = track.audio_path.with_suffix(".auto.srt")
     usable_duration = max(1.0, duration - 1.0)
     chunk_duration = max(1.8, usable_duration / len(chunks))
     entries = []
@@ -300,8 +307,11 @@ def build_subtitle_filter(
     if not entries:
         return ""
     srt_path.write_text("\n".join(entries), encoding="utf-8")
+    return subtitle_style_filter(srt_path, height, render_config)
 
-    font_size = int(render_config.get("subtitle_font_size") or max(18, height // 58))
+
+def subtitle_style_filter(srt_path: Path, height: int, render_config: dict[str, Any]) -> str:
+    font_size = int(render_config.get("subtitle_font_size") or max(18, height // 66))
     margin_v = max(30, height // 16)
     style = (
         "FontName=Arial,"
@@ -318,8 +328,9 @@ def build_subtitle_filter(
     return f"subtitles=filename='{escape_filter_path(srt_path)}':force_style='{style}'"
 
 
-def transcript_chunks(text: str, words_per_chunk: int) -> list[str]:
+def transcript_chunks(text: str, words_per_chunk: int, max_chars_per_chunk: int = 82) -> list[str]:
     words_per_chunk = max(4, words_per_chunk)
+    max_chars_per_chunk = max(24, max_chars_per_chunk)
     cleaned = re.sub(r"\s+", " ", text).strip()
     if not cleaned:
         return []
@@ -329,10 +340,11 @@ def transcript_chunks(text: str, words_per_chunk: int) -> list[str]:
         words = sentence.split()
         current: list[str] = []
         for word in words:
-            current.append(word)
-            if len(current) >= words_per_chunk:
+            candidate = " ".join([*current, word])
+            if current and (len(current) >= words_per_chunk or len(candidate) > max_chars_per_chunk):
                 chunks.append(" ".join(current))
                 current = []
+            current.append(word)
         if current:
             chunks.append(" ".join(current))
     return chunks

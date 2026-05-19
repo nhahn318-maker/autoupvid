@@ -33,7 +33,9 @@
     "color_grade": true,
     "title_overlay": true,
     "subtitle_overlay": true,
-    "subtitle_words_per_chunk": 10
+    "subtitle_font_size": 28,
+    "subtitle_words_per_chunk": 18,
+    "subtitle_max_chars_per_chunk": 82
   },
   "shorts": {
     "enabled": true,
