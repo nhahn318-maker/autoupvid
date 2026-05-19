@@ -280,7 +280,11 @@ def build_subtitle_filter(
     render_config: dict[str, Any],
 ) -> str:
     srt_path = track.audio_path.with_suffix(".auto.srt")
-    if srt_path.exists() and Path(f"{srt_path}.synced").exists():
+    if (
+        bool(render_config.get("use_synced_subtitles", True))
+        and srt_path.exists()
+        and Path(f"{srt_path}.synced").exists()
+    ):
         return subtitle_style_filter(srt_path, height, render_config)
 
     transcript_path = track.audio_path.with_suffix(".txt")
@@ -312,7 +316,7 @@ def build_subtitle_filter(
 
 def subtitle_style_filter(srt_path: Path, height: int, render_config: dict[str, Any]) -> str:
     font_size = int(render_config.get("subtitle_font_size") or max(18, height // 66))
-    margin_v = max(30, height // 16)
+    margin_v = int(render_config.get("subtitle_margin_v") or max(30, height // 16))
     style = (
         "FontName=Arial,"
         f"FontSize={font_size},"

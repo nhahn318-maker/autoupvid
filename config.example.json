@@ -50,7 +50,12 @@
       "{track_title} - Remix Hay 2026 #Shorts"
     ],
     "description_suffix": "\n\n#Shorts",
-    "publish_offset_minutes": 30
+    "publish_offset_minutes": 30,
+    "subtitle_font_size": 34,
+    "subtitle_margin_v": 150,
+    "subtitle_words_per_chunk": 7,
+    "subtitle_max_chars_per_chunk": 28,
+    "use_synced_subtitles": false
   },
   "collection": {
     "enabled": true,

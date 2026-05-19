@@ -262,6 +262,15 @@ def render_short(track, output_dir: Path, config) -> Path:
     shorts_config = dict(config.get("render"))
     shorts = config.get("shorts")
     shorts_config["resolution"] = shorts.get("resolution", "1080x1920")
+    for key in [
+        "subtitle_font_size",
+        "subtitle_margin_v",
+        "subtitle_words_per_chunk",
+        "subtitle_max_chars_per_chunk",
+        "use_synced_subtitles",
+    ]:
+        if key in shorts:
+            shorts_config[key] = shorts[key]
     return render_video(
         track=track,
         output_dir=output_dir,
