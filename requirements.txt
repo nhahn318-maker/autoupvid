@@ -1,0 +1,8 @@
+google-api-python-client==2.169.0
+google-auth-oauthlib==1.2.2
+google-auth-httplib2==0.2.0
+tzdata==2026.1
+fastapi==0.124.0
+uvicorn[standard]==0.38.0
+python-multipart==0.0.20
+edge-tts==7.2.3

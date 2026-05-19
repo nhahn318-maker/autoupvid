@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Music Automation</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div id="toast" class="toast" hidden></div>
+
+    <header class="topbar">
+      <div class="brand">
+        <h1>AI Music Automation</h1>
+        <p id="connection">Local dashboard</p>
+      </div>
+      <div class="headerControls">
+        <select id="accountSelect" aria-label="YouTube account"></select>
+        <button id="refreshBtn" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="workspaceBar" aria-label="Workspace">
+        <div class="channelSwitch">
+          <button id="storyModeBtn" type="button">Story</button>
+          <button id="boboModeBtn" type="button">Bobo Remix</button>
+          <button id="nhahnModeBtn" type="button">Nhahn Bolero</button>
+        </div>
+        <div class="workspaceInfo">
+          <strong id="modeTitle">Mode</strong>
+          <p id="modeInfo"></p>
+        </div>
+      </section>
+
+      <section class="metrics" aria-label="Stats">
+        <article><span id="audioCount">0</span><small>Audio</small></article>
+        <article><span id="imageCount">0</span><small>Images</small></article>
+        <article><span id="pendingCount">0</span><small>Pending</small></article>
+        <article><span id="outputCount">0</span><small>Videos</small></article>
+        <article><span id="uploadCount">0</span><small>Uploads</small></article>
+      </section>
+
+      <section class="commandBar" aria-label="Actions">
+        <button id="renderBtn" type="button">Render Pending</button>
+        <button id="dryBtn" type="button">Dry Run</button>
+        <button id="uploadBtn" type="button" class="primary">Schedule Upload</button>
+        <button id="syncBtn" type="button">Sync State</button>
+        <span id="uploadPolicy" class="badge">Checking</span>
+      </section>
+
+      <section class="grid topGrid">
+        <div class="panel">
+          <div class="panelHead">
+            <div>
+              <h2>Input Files</h2>
+              <p class="panelSub">Audio, images, thumbnails</p>
+            </div>
+            <div class="miniActions">
+              <button data-folder="audio" type="button">Audio</button>
+              <button data-folder="images" type="button">Images</button>
+              <button data-folder="thumbnails" type="button">Thumbs</button>
+              <button data-folder="output" type="button">Output</button>
+            </div>
+          </div>
+          <div class="uploadRows">
+            <label>
+              <span>MP3 / Audio</span>
+              <input id="audioUpload" type="file" multiple accept=".mp3,.wav,.m4a,.flac,.aac,.ogg" />
+            </label>
+            <label>
+              <span>Images</span>
+              <input id="imageUpload" type="file" multiple accept=".jpg,.jpeg,.png,.webp" />
+            </label>
+            <label>
+              <span>Thumbnails</span>
+              <input id="thumbUpload" type="file" multiple accept=".jpg,.jpeg,.png,.webp" />
+            </label>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panelHead">
+            <div>
+              <h2>Schedule</h2>
+              <p class="panelSub">Next upload slots</p>
+            </div>
+            <span id="credentialBadge" class="badge">Checking</span>
+          </div>
+          <div id="schedulePreview" class="scheduleList"></div>
+        </div>
+      </section>
+
+      <section id="storyPanel" class="panel">
+        <div class="panelHead">
+          <div>
+            <h2>Story Voice</h2>
+            <p class="panelSub">Generate narration and attach assets</p>
+          </div>
+          <div class="miniActions">
+            <button id="storyOneClickBtn" type="button">Story One-Click</button>
+            <button id="ttsBtn" type="button">Generate Voice</button>
+          </div>
+        </div>
+        <div class="ttsGrid">
+          <label>
+            <span>Title</span>
+            <input id="ttsTitle" type="text" placeholder="Story title" />
+          </label>
+          <label>
+            <span>Voice</span>
+            <select id="ttsVoice"></select>
+          </label>
+        </div>
+        <textarea id="ttsText" class="ttsText" placeholder="Paste story text here"></textarea>
+        <p id="ttsStatus" class="ttsStatus"></p>
+        <div class="voicePreview">
+          <div>
+            <strong>Voice Preview</strong>
+            <span id="voicePreviewInfo">No MP3 selected</span>
+          </div>
+          <audio id="voicePreview" controls preload="metadata"></audio>
+        </div>
+        <div class="storyAssets">
+          <label>
+            <span>Story MP3</span>
+            <select id="storyAudioSelect"></select>
+          </label>
+          <label>
+            <span>5 Images</span>
+            <input id="storyImagesInput" type="file" multiple accept=".jpg,.jpeg,.png,.webp" />
+          </label>
+          <label>
+            <span>Thumbnail</span>
+            <input id="storyThumbInput" type="file" accept=".jpg,.jpeg,.png,.webp" />
+          </label>
+          <button id="storyAssetsBtn" type="button">Attach To MP3</button>
+        </div>
+      </section>
+
+      <section id="collectionPanel" class="panel collectionPanel">
+        <div class="panelHead">
+          <div>
+            <h2>Tuyển Tập 5 Bài</h2>
+            <p id="collectionText"></p>
+          </div>
+          <button id="collectionBtn" type="button">Create Collection</button>
+        </div>
+        <div id="collectionVideos" class="collectionVideos"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panelHead">
+          <div>
+            <h2>Tracks</h2>
+            <p class="panelSub" id="trackSummary"></p>
+          </div>
+          <div class="legend">
+            <span class="status waiting">Pending</span>
+            <span class="status ready">Rendered</span>
+            <span class="status done">Uploaded</span>
+          </div>
+        </div>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Audio</th>
+                <th>Assets</th>
+                <th>Normal</th>
+                <th>Short</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="trackRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="grid reviewGrid">
+        <div class="panel">
+          <div class="panelHead">
+            <div>
+              <h2>Upload Preview</h2>
+              <p class="panelSub">Title, description, thumbnail</p>
+            </div>
+          </div>
+          <div id="metadataPreview" class="previewList"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panelHead">
+            <div>
+              <h2>Video Preview</h2>
+              <p class="panelSub">Rendered files</p>
+            </div>
+            <select id="videoPreviewSelect" aria-label="Rendered video preview"></select>
+          </div>
+          <video id="videoPreview" class="videoPreview" controls preload="metadata"></video>
+          <p id="videoPreviewInfo" class="muted"></p>
+        </div>
+      </section>
+
+      <section class="grid bottomGrid">
+        <details class="panel configPanel">
+          <summary>
+            <span>Config</span>
+            <button id="saveConfigBtn" type="button">Save</button>
+          </summary>
+          <textarea id="configEditor" spellcheck="false"></textarea>
+        </details>
+        <div class="panel jobsPanel">
+          <div class="panelHead">
+            <h2>Jobs</h2>
+            <span id="jobStatus" class="muted"></span>
+          </div>
+          <pre id="jobLog"></pre>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

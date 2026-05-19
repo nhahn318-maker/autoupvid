@@ -1,0 +1,143 @@
+{
+  "channel": {
+    "default_title_template": "{track_title} - Bolero Remix 2026",
+    "title_templates": [
+      "{track_title} - Bolero Remix 2026",
+      "{track_title} - Nhạc Bolero Remix 2026",
+      "{track_title} - Bolero Dance Remix",
+      "{track_title} - Bolero Vinahouse Remix",
+      "{track_title} - Bolero Trữ Tình Remix 2026"
+    ],
+    "default_description_template": "🎶 {track_title}\nThể loại: Bolero Vinahouse Remix\nTác giả: {author}\nSản xuất bằng công cụ: AI\n\n{mood_description}\n\n#bolero  #remix  #nhactrutinh  #nhachay",
+    "mood_descriptions": [
+      "Một ca khúc bolero vinahouse remix buồn, mang màu sắc mưa đêm, phố cũ và nỗi nhớ dành cho một người đã xa.",
+      "Một bản bolero vinahouse remix da diết, gợi cảm giác đêm khuya, ánh đèn hiu hắt và những ký ức chưa thể quên.",
+      "Ca khúc mang chất bolero remix trữ tình, hòa cùng nhịp vinahouse nhẹ, phù hợp cho những lúc nhớ về chuyện tình cũ.",
+      "Một giai điệu bolero vinahouse remix nhiều cảm xúc, vừa sâu lắng vừa bắt tai, kể lại nỗi buồn của một cuộc tình xa.",
+      "Bản remix mang không khí phố đêm và mưa lạnh, kết hợp bolero trữ tình với nhịp vinahouse hiện đại, dễ nghe và giàu cảm xúc."
+    ],
+    "default_author": "Trần Thiện Nhân",
+    "default_tags": ["Bolero", "Remix", "Nhạc trữ tình", "Nhạc hay"],
+    "category_id": "10",
+    "privacy_status": "private",
+    "made_for_kids": false
+  },
+  "render": {
+    "resolution": "1920x1080",
+    "fps": 30,
+    "video_bitrate": "4500k",
+    "audio_bitrate": "192k",
+    "zoom_effect": true,
+    "transition_effect": true,
+    "fade_effect": true,
+    "color_grade": true,
+    "title_overlay": true,
+    "subtitle_overlay": true,
+    "subtitle_words_per_chunk": 10
+  },
+  "shorts": {
+    "enabled": true,
+    "resolution": "1080x1920",
+    "max_duration_seconds": 59,
+    "title_template": "{track_title} #Shorts",
+    "title_templates": [
+      "{track_title} - Bolero Remix 2026 #Shorts",
+      "{track_title} - Nhạc Bolero Remix #Shorts",
+      "{track_title} - Bolero Dance Remix #Shorts",
+      "{track_title} - Bolero Trữ Tình #Shorts",
+      "{track_title} - Remix Hay 2026 #Shorts"
+    ],
+    "description_suffix": "\n\n#Shorts",
+    "publish_offset_minutes": 30
+  },
+  "collection": {
+    "enabled": true,
+    "size": 5,
+    "output_prefix": "bolero-remix-tuyen-tap",
+    "title_template": "Bolero Remix 2026 - Tuyển Tập 5 Ca Khúc Hay Nhất",
+    "description_template": "Tuyển tập 5 ca khúc bolero vinahouse remix được ghép tự động từ các video đã render.\n\n#bolero  #remix  #nhactrutinh  #nhachay"
+  },
+  "schedule": {
+    "videos_per_day": 2,
+    "publish_times": ["06:00", "18:00"],
+    "timezone": "Asia/Ho_Chi_Minh",
+    "upload_privacy_when_no_schedule": "private"
+  },
+  "active_account": "account1",
+  "accounts": {
+    "account1": {
+      "label": "nhtony318 - Story",
+      "token_file": "token.json",
+      "state_dir": "data/state/accounts/account1"
+    },
+    "account2": {
+      "label": "bobo - Bolero Remix",
+      "token_file": "token_account2.json",
+      "state_dir": "data/state/accounts/account2"
+    },
+    "account3": {
+      "label": "nhahn3188 - Bolero",
+      "token_file": "token_nhahn3188.json",
+      "state_dir": "data/state/accounts/account3"
+    }
+  },
+  "account_overrides": {
+    "account1": {
+      "channel": {
+        "default_title_template": "{track_title} - Câu Chuyện Nhân Quả Ý Nghĩa",
+        "title_templates": [
+          "{track_title} - Câu Chuyện Nhân Quả Ý Nghĩa",
+          "{track_title} - Truyện Kể Đêm Khuya",
+          "{track_title} - Bài Học Cuộc Sống Đáng Suy Ngẫm",
+          "{track_title} - Một Câu Chuyện Lay Động Lòng Người"
+        ],
+        "default_description_template": "{track_title}\n\nCâu chuyện được kể bằng giọng đọc AI, mang màu sắc đời sống, nhân quả và những bài học đáng suy ngẫm.\n\n{mood_description}\n\n#truyenke #nhanqua #baihoccuocsong #story",
+        "mood_descriptions": [
+          "Một câu chuyện nhẹ nhàng nhưng để lại nhiều suy ngẫm về cách sống, lòng tử tế và những lựa chọn trong đời.",
+          "Câu chuyện mang màu sắc nhân quả, giúp người nghe nhìn lại những điều bình dị nhưng quan trọng trong cuộc sống.",
+          "Một bài học cuộc sống sâu lắng, phù hợp để lắng nghe lúc đêm khuya và suy ngẫm về tình người.",
+          "Câu chuyện đời thường với cái kết đáng suy ngẫm, nhắc chúng ta sống chậm lại và biết trân trọng hiện tại."
+        ],
+        "default_author": "Kênh Story",
+        "default_tags": [
+          "truyenke",
+          "nhanqua",
+          "baihoccuocsong",
+          "story"
+        ],
+        "category_id": "22"
+      },
+      "shorts": {
+        "title_templates": [
+          "{track_title} - Câu Chuyện Nhân Quả #Shorts",
+          "{track_title} - Bài Học Cuộc Sống #Shorts",
+          "{track_title} - Truyện Ngắn Ý Nghĩa #Shorts"
+        ],
+        "description_suffix": "\n\n#Shorts #truyenke #nhanqua #baihoccuocsong"
+      },
+      "paths": {
+        "audio_dir": "data/input/story/audio",
+        "image_dir": "data/input/story/images",
+        "thumbnail_dir": "data/input/story/thumbnails",
+        "output_dir": "data/output/story"
+      },
+      "schedule": {
+        "videos_per_day": 1,
+        "publish_times": [
+          "18:00"
+        ],
+        "timezone": "Asia/Ho_Chi_Minh",
+        "upload_privacy_when_no_schedule": "private"
+      }
+    }
+  },
+  "paths": {
+    "audio_dir": "data/input/audio",
+    "image_dir": "data/input/images",
+    "thumbnail_dir": "data/input/thumbnails",
+    "output_dir": "data/output",
+    "state_dir": "data/state",
+    "credentials_file": "client_secret.json",
+    "token_file": "token.json"
+  }
+}
