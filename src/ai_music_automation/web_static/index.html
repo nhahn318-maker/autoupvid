@@ -49,6 +49,17 @@
         <span id="uploadPolicy" class="badge">Checking</span>
       </section>
 
+      <section id="jobsPanel" class="panel jobsPanel collapsed">
+        <div class="panelHead">
+          <div>
+            <h2>Jobs</h2>
+            <p id="jobStatus" class="panelSub"></p>
+          </div>
+          <button id="toggleJobsBtn" type="button">Show</button>
+        </div>
+        <pre id="jobLog"></pre>
+      </section>
+
       <section class="grid topGrid">
         <div class="panel">
           <div class="panelHead">
@@ -203,7 +214,7 @@
         </div>
       </section>
 
-      <section class="grid bottomGrid">
+      <section class="bottomGrid">
         <details class="panel configPanel">
           <summary>
             <span>Config</span>
@@ -211,13 +222,6 @@
           </summary>
           <textarea id="configEditor" spellcheck="false"></textarea>
         </details>
-        <div class="panel jobsPanel">
-          <div class="panelHead">
-            <h2>Jobs</h2>
-            <span id="jobStatus" class="muted"></span>
-          </div>
-          <pre id="jobLog"></pre>
-        </div>
       </section>
     </main>
 

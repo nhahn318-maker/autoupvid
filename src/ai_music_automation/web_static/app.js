@@ -130,6 +130,9 @@ function renderJobs(jobs) {
   const job = jobs.find((item) => item.id === state.currentJob) || jobs[0];
   $("jobStatus").textContent = job ? `${job.action} · ${job.status}` : "";
   $("jobLog").textContent = job ? job.logs.join("\n") : "";
+  if (job && (job.status === "running" || job.status === "queued")) {
+    setJobsCollapsed(false);
+  }
 }
 
 async function runAction(action) {
@@ -167,6 +170,11 @@ async function pollJob(jobId) {
     }
     await new Promise((resolve) => setTimeout(resolve, 1200));
   }
+}
+
+function setJobsCollapsed(collapsed) {
+  $("jobsPanel").classList.toggle("collapsed", collapsed);
+  $("toggleJobsBtn").textContent = collapsed ? "Show" : "Hide";
 }
 
 async function uploadFiles(kind, input) {
@@ -562,6 +570,7 @@ $("dryBtn").addEventListener("click", () => runAction("daily-dry-run"));
 $("syncBtn").addEventListener("click", () => runAction("sync-state"));
 $("uploadBtn").addEventListener("click", () => runAction("daily-upload"));
 $("collectionBtn").addEventListener("click", () => runAction("create-collection"));
+$("toggleJobsBtn").addEventListener("click", () => setJobsCollapsed(!$("jobsPanel").classList.contains("collapsed")));
 $("saveConfigBtn").addEventListener("click", (event) => {
   event.preventDefault();
   saveConfig().catch((error) => showToast(error.message, "error"));

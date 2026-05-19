@@ -260,10 +260,6 @@ button.danger:hover {
   grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
 }
 
-.bottomGrid {
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.8fr);
-}
-
 .panel {
   min-width: 0;
   padding: 16px;
@@ -629,7 +625,19 @@ textarea {
 }
 
 .jobsPanel pre {
-  height: 236px;
+  height: 160px;
+}
+
+.jobsPanel.collapsed {
+  padding-bottom: 12px;
+}
+
+.jobsPanel.collapsed .panelHead {
+  margin-bottom: 0;
+}
+
+.jobsPanel.collapsed pre {
+  display: none;
 }
 
 @media (max-width: 960px) {
