@@ -2,6 +2,7 @@ const state = {
   currentJob: null,
   latestData: null,
   toastTimer: null,
+  refreshing: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -45,18 +46,23 @@ function jobSummary(job) {
   return lastLog || `${job.action} lỗi.`;
 }
 
-async function refresh() {
-  const data = await requestJson("/api/status");
-  state.latestData = data;
+async function refresh(options = {}) {
+  if (state.refreshing) return state.latestData;
+  state.refreshing = true;
+  try {
+    const data = await requestJson("/api/status");
+    state.latestData = data;
 
-  $("connection").textContent = "Ready";
+    $("connection").textContent = options.auto ? "Ready · auto" : "Ready";
   $("audioCount").textContent = data.counts.audio;
   $("imageCount").textContent = data.counts.images;
   $("pendingCount").textContent = data.counts.pending;
   $("outputCount").textContent = data.counts.output;
   $("uploadCount").textContent = data.counts.uploads;
   $("trackSummary").textContent = `${data.counts.tracks} tracks · ${data.counts.pending} pending`;
-  $("configEditor").value = JSON.stringify(data.config, null, 2);
+    if (document.activeElement !== $("configEditor")) {
+      $("configEditor").value = JSON.stringify(data.config, null, 2);
+    }
 
   renderAccounts(data.accounts, data.active_account);
   renderVoices(data.tts_voices);
@@ -72,9 +78,13 @@ async function refresh() {
   badge.textContent = data.credentials_ready ? "Credentials ready" : "No credentials";
   badge.classList.toggle("warn", !data.credentials_ready);
 
-  $("schedulePreview").innerHTML = data.schedule_preview
-    .map((item, index) => `<div><strong>Slot ${index + 1}</strong><span>${formatSlot(item)}</span></div>`)
-    .join("");
+    $("schedulePreview").innerHTML = data.schedule_preview
+      .map((item, index) => `<div><strong>Slot ${index + 1}</strong><span>${formatSlot(item)}</span></div>`)
+      .join("");
+    return data;
+  } finally {
+    state.refreshing = false;
+  }
 }
 
 function renderTracks(tracks) {
@@ -175,6 +185,21 @@ async function pollJob(jobId) {
 function setJobsCollapsed(collapsed) {
   $("jobsPanel").classList.toggle("collapsed", collapsed);
   $("toggleJobsBtn").textContent = collapsed ? "Show" : "Hide";
+}
+
+function isUserEditing() {
+  const element = document.activeElement;
+  if (!element || element === document.body) return false;
+  return element.matches("input, textarea, select") || element.isContentEditable;
+}
+
+function startAutoRefresh() {
+  window.setInterval(() => {
+    if (document.hidden || isUserEditing()) return;
+    refresh({ auto: true }).catch((error) => {
+      $("connection").textContent = error.message;
+    });
+  }, 4000);
 }
 
 async function uploadFiles(kind, input) {
@@ -625,3 +650,4 @@ refresh().catch((error) => {
   $("connection").textContent = error.message;
   showToast(error.message, "error");
 });
+startAutoRefresh();

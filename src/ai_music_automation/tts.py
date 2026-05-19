@@ -11,6 +11,10 @@ from .media import slugify
 DEFAULT_VOICES = [
     {"id": "vi-VN-HoaiMyNeural", "label": "Vietnamese - Hoai My"},
     {"id": "vi-VN-NamMinhNeural", "label": "Vietnamese - Nam Minh"},
+    {"id": "en-US-AvaMultilingualNeural", "label": "Multilingual - Ava (Vietnamese test)"},
+    {"id": "en-US-AndrewMultilingualNeural", "label": "Multilingual - Andrew (Vietnamese test)"},
+    {"id": "en-US-EmmaMultilingualNeural", "label": "Multilingual - Emma (Vietnamese test)"},
+    {"id": "en-US-BrianMultilingualNeural", "label": "Multilingual - Brian (Vietnamese test)"},
     {"id": "en-US-JennyNeural", "label": "English - Jenny"},
     {"id": "en-US-GuyNeural", "label": "English - Guy"},
 ]
