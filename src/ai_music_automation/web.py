@@ -185,7 +185,7 @@ def api_thumbnail(filename: str) -> FileResponse:
 def api_track_action(payload: dict[str, str]) -> dict[str, Any]:
     action = (payload.get("action") or "").strip()
     audio_name = (payload.get("audio") or "").strip()
-    if action not in {"render", "rerender", "dry-run", "upload", "skip", "delete"}:
+    if action not in {"render", "rerender", "dry-run", "upload", "upload-normal", "upload-short", "skip", "delete"}:
         raise HTTPException(status_code=400, detail="Unknown track action")
     if not audio_name:
         raise HTTPException(status_code=400, detail="Audio is required")
@@ -467,6 +467,7 @@ def run_action(job_id: str, action: str, payload: dict[str, Any]) -> None:
                 tracks=[track],
                 schedule=True,
                 dry_run=track_action == "dry-run",
+                upload_types=track_upload_types(track_action),
             )
             log(job, "Selected dry run finished." if track_action == "dry-run" else "Selected upload finished.")
             mark_done(job)
@@ -543,6 +544,14 @@ def find_track_by_audio(tracks, audio_name: str):
         if track.audio_path.name == audio_name:
             return track
     return None
+
+
+def track_upload_types(track_action: str) -> set[str]:
+    if track_action == "upload-normal":
+        return {"normal"}
+    if track_action == "upload-short":
+        return {"short"}
+    return {"normal", "short"}
 
 
 def delete_track_files(track, paths: dict[str, Path], state: StateStore, config) -> int:

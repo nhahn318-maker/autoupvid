@@ -94,7 +94,16 @@ def init_project(root: Path) -> None:
     print("Project folders are ready.")
 
 
-def upload_tracks(config, paths, state: StateStore, tracks, schedule: bool, dry_run: bool) -> None:
+def upload_tracks(
+    config,
+    paths,
+    state: StateStore,
+    tracks,
+    schedule: bool,
+    dry_run: bool,
+    upload_types: set[str] | None = None,
+) -> None:
+    upload_types = upload_types or {"normal", "short"}
     videos_per_day = int(config.get("schedule", "videos_per_day", default=3))
     tracks = tracks[:videos_per_day] if schedule else tracks
 
@@ -108,7 +117,7 @@ def upload_tracks(config, paths, state: StateStore, tracks, schedule: bool, dry_
 
     for track in tracks:
         publish_time = None
-        if schedule and not state.has_upload(track.audio_path, "normal"):
+        if schedule and "normal" in upload_types and not state.has_upload(track.audio_path, "normal"):
             publish_time = reserve_next_publish_time(
                 config=config,
                 blocked_times=blocked_times,
@@ -121,7 +130,7 @@ def upload_tracks(config, paths, state: StateStore, tracks, schedule: bool, dry_
         if not schedule:
             privacy = config.get("schedule", "upload_privacy_when_no_schedule", default=privacy)
 
-        if not state.has_upload(track.audio_path, "normal"):
+        if "normal" in upload_types and not state.has_upload(track.audio_path, "normal"):
             video_path = paths["output_dir"] / f"{track.slug}.mp4"
             if not video_path.exists():
                 video_path = render_video(track, paths["output_dir"], config.get("render"))
@@ -151,10 +160,14 @@ def upload_tracks(config, paths, state: StateStore, tracks, schedule: bool, dry_
                     }
                 )
                 print(f"Uploaded: https://www.youtube.com/watch?v={video_id}")
-        else:
+        elif "normal" in upload_types:
             print(f"Skip normal already uploaded: {track.title}")
 
-        if config.get("shorts", "enabled", default=False) and not state.has_upload(track.audio_path, "short"):
+        if (
+            "short" in upload_types
+            and config.get("shorts", "enabled", default=False)
+            and not state.has_upload(track.audio_path, "short")
+        ):
             short_path = paths["output_dir"] / f"{track.slug}-short.mp4"
             if not short_path.exists():
                 short_path = render_short(track, paths["output_dir"], config)
@@ -200,6 +213,8 @@ def upload_tracks(config, paths, state: StateStore, tracks, schedule: bool, dry_
                     }
                 )
                 print(f"Uploaded short: https://www.youtube.com/watch?v={short_video_id}")
+        elif "short" in upload_types and state.has_upload(track.audio_path, "short"):
+            print(f"Skip short already uploaded: {track.title}")
 
         if not dry_run and state.is_complete(track.audio_path, bool(config.get("shorts", "enabled", default=False))):
             state.mark_processed(track.audio_path)

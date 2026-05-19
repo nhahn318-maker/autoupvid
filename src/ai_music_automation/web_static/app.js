@@ -33,7 +33,12 @@ function jobSummary(job) {
     if (job.action === "tts") return "Tạo MP3 thành công.";
     if (job.action === "render" || job.action === "track-render" || job.action === "track-rerender") return "Render video thành công.";
     if (job.action === "daily-dry-run" || job.action === "track-dry-run") return "Dry run thành công.";
-    if (job.action === "daily-upload" || job.action === "track-upload") return "Upload hoàn tất.";
+    if (
+      job.action === "daily-upload" ||
+      job.action === "track-upload" ||
+      job.action === "track-upload-normal" ||
+      job.action === "track-upload-short"
+    ) return "Upload hoàn tất.";
     if (job.action === "track-delete") return "Đã xóa track local.";
     return `${job.action} thành công.`;
   }
@@ -104,7 +109,9 @@ function renderTracks(tracks) {
         <td class="rowActions">
           <button type="button" data-track-action="rerender" data-audio="${escapeHtml(track.audio)}">Re-render</button>
           <button type="button" data-track-action="dry-run" data-audio="${escapeHtml(track.audio)}">Dry Run</button>
-          <button type="button" data-track-action="upload" data-audio="${escapeHtml(track.audio)}">Upload</button>
+          <button type="button" data-track-action="upload-normal" data-audio="${escapeHtml(track.audio)}" ${track.normal_uploaded ? "disabled" : ""}>Upload Long</button>
+          <button type="button" data-track-action="upload-short" data-audio="${escapeHtml(track.audio)}" ${track.short_uploaded ? "disabled" : ""}>Upload Short</button>
+          <button type="button" data-track-action="upload" data-audio="${escapeHtml(track.audio)}" ${track.normal_uploaded && track.short_uploaded ? "disabled" : ""}>Upload Both</button>
           <button type="button" data-track-action="skip" data-audio="${escapeHtml(track.audio)}">Skip</button>
           ${!track.normal_uploaded && !track.short_uploaded ? `<button type="button" class="danger" data-track-action="delete" data-audio="${escapeHtml(track.audio)}">Delete</button>` : ""}
           ${renderYoutubeLinks(track.youtube_urls)}
