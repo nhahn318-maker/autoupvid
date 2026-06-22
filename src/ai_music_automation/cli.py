@@ -1,23 +1,28 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 import shutil
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from .accounts import account_state_dir, account_state_dirs, account_token_path, get_active_account_id
+from .auto_images import prepare_auto_images
+from .collection import create_collection
 from .config import load_config
-from .media import discover_tracks
+from .media import IMAGE_EXTENSIONS, discover_tracks, find_matching_images, list_files, track_with_images_from_dir
 from .metadata import build_metadata
 from .render import render_video
-from .scheduler import next_publish_times, to_rfc3339_utc
+from .scheduler import next_publish_times, parse_time, to_rfc3339_utc
 from .state import StateStore
 from .youtube import count_videos_on_date, create_token, get_youtube_service, upload_video
+
+UploadStatusCallback = Callable[[str, int, str], None]
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="AI music YouTube automation")
-    parser.add_argument("command", choices=["init", "render", "upload", "daily", "login-account"])
+    parser.add_argument("command", choices=["init", "render", "upload", "daily", "login-account", "auto-images"])
     parser.add_argument("--config", default="config.json")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--dry-run", action="store_true")
@@ -38,6 +43,14 @@ def main() -> None:
         print(f"Created token: {created}")
         return
 
+    if args.command == "auto-images":
+        for result in prepare_auto_images(config, paths, limit=args.limit):
+            if result.created:
+                print(f"Downloaded {len(result.created)} image file(s) for {result.audio_path.name}")
+            else:
+                print(f"Skipped {result.audio_path.name}: {result.skipped_reason}")
+        return
+
     state = StateStore(account_state_dir(config))
     active_account = get_active_account_id(config)
     other_states = [
@@ -46,18 +59,27 @@ def main() -> None:
         if account_id != active_account
     ]
     shorts_enabled = bool(config.get("shorts", "enabled", default=False))
+    upload_types = scheduled_upload_types(config, shorts_enabled)
+
+    image_results = prepare_auto_images(config, paths, limit=args.limit)
+    for result in image_results:
+        if result.created:
+            print(f"Auto images: {result.audio_path.name} -> {len(result.created)} file(s)")
 
     tracks = [
         track
         for track in discover_tracks(paths["audio_dir"], paths["image_dir"])
         if not uploaded_in_any_state(track.audio_path, other_states)
-        if state.needs_work(track.audio_path, shorts_enabled)
+        if not state.is_collected(track.audio_path)
+        if state.needs_work(track.audio_path, shorts_enabled, upload_types)
     ]
     if args.limit:
         tracks = tracks[: args.limit]
 
     if not tracks:
         print("No new tracks found. Add MP3 files and images to data/input.")
+        if args.command == "daily":
+            maybe_create_duration_collection(config, paths, state, dry_run=args.dry_run)
         return
 
     if args.command == "render":
@@ -65,7 +87,7 @@ def main() -> None:
             output = render_video(track, paths["output_dir"], config.get("render"))
             print(f"Rendered: {output}")
             if config.get("shorts", "enabled", default=False):
-                short_output = render_short(track, paths["output_dir"], config)
+                short_output = render_short(short_track_for_paths(track, paths), paths["output_dir"], config)
                 print(f"Rendered short: {short_output}")
         return
 
@@ -74,7 +96,8 @@ def main() -> None:
         return
 
     if args.command == "daily":
-        upload_tracks(config, paths, state, tracks, schedule=True, dry_run=args.dry_run)
+        upload_tracks(config, paths, state, tracks, schedule=True, dry_run=args.dry_run, upload_types=upload_types)
+        maybe_create_duration_collection(config, paths, state, dry_run=args.dry_run)
 
 
 def init_project(root: Path) -> None:
@@ -85,6 +108,7 @@ def init_project(root: Path) -> None:
     for directory in [
         "data/input/audio",
         "data/input/images",
+        "data/input/short_images",
         "data/input/thumbnails",
         "data/output",
         "data/state",
@@ -102,10 +126,39 @@ def upload_tracks(
     schedule: bool,
     dry_run: bool,
     upload_types: set[str] | None = None,
+    progress_callback: UploadStatusCallback | None = None,
+    log_callback: Callable[[str], None] | None = None,
 ) -> None:
     upload_types = upload_types or {"normal", "short"}
     videos_per_day = int(config.get("schedule", "videos_per_day", default=3))
     tracks = tracks[:videos_per_day] if schedule else tracks
+
+    def emit_progress(stage: str, progress: int, detail: str) -> None:
+        if progress_callback:
+            progress_callback(stage, progress, detail)
+
+    def emit_log(message: str) -> None:
+        print(message)
+        if log_callback:
+            log_callback(message)
+
+    def upload_progress(video_path: Path, label: str):
+        last_detail = {"value": ""}
+
+        def _callback(sent_bytes: int, total_bytes: int, state_text: str) -> None:
+            total = max(total_bytes, 1)
+            percent = max(0, min(100, int(sent_bytes * 100 / total)))
+            progress = min(99, 90 + int(percent * 0.09))
+            sent_mb = sent_bytes / (1024 * 1024)
+            total_mb = total / (1024 * 1024)
+            detail = f"{label} {video_path.name}: {sent_mb:.1f}/{total_mb:.1f} MB ({percent}%)"
+            if state_text != "uploading":
+                detail = f"{detail} | {state_text}"
+            if detail != last_detail["value"]:
+                last_detail["value"] = detail
+                emit_progress("Uploading YouTube", progress, detail)
+
+        return _callback
 
     blocked_times = state.used_publish_times() if schedule else set()
 
@@ -116,6 +169,12 @@ def upload_tracks(
         service = get_youtube_service(paths["credentials_file"], account_token_path(config))
 
     for track in tracks:
+        if should_render_normal_before_short(config, upload_types):
+            video_path = paths["output_dir"] / f"{track.slug}.mp4"
+            if not video_path.exists():
+                video_path = render_video(track, paths["output_dir"], config.get("render"))
+                print(f"Rendered normal for collection: {video_path}")
+
         publish_time = None
         if schedule and "normal" in upload_types and not state.has_upload(track.audio_path, "normal"):
             publish_time = reserve_next_publish_time(
@@ -137,18 +196,20 @@ def upload_tracks(
 
             metadata = build_metadata(track, config.data, paths["thumbnail_dir"])
             if dry_run:
-                print(f"Would upload: {video_path}")
-                print(f"Title: {metadata.title}")
-                print(f"Privacy: {'private scheduled' if publish_at else privacy}")
+                emit_log(f"Would upload: {video_path}")
+                emit_log(f"Title: {metadata.title}")
+                emit_log(f"Privacy: {'private scheduled' if publish_at else privacy}")
                 if publish_at:
-                    print(f"Publish at: {publish_at}")
+                    emit_log(f"Publish at: {publish_at}")
             else:
+                emit_progress("Uploading YouTube", 90, f"Preparing normal upload: {video_path.name}")
                 video_id = upload_video(
                     service=service,
                     video_path=video_path,
                     metadata=metadata,
                     privacy_status=privacy,
                     publish_at=publish_at,
+                    progress_callback=upload_progress(video_path, "Normal"),
                 )
                 state.add_upload(
                     {
@@ -159,24 +220,24 @@ def upload_tracks(
                         "publish_at": publish_at,
                     }
                 )
-                print(f"Uploaded: https://www.youtube.com/watch?v={video_id}")
+                emit_log(f"Uploaded: https://www.youtube.com/watch?v={video_id}")
         elif "normal" in upload_types:
-            print(f"Skip normal already uploaded: {track.title}")
+            emit_log(f"Skip normal already uploaded: {track.title}")
 
         if (
             "short" in upload_types
             and config.get("shorts", "enabled", default=False)
             and not state.has_upload(track.audio_path, "short")
         ):
+            short_track = short_track_for_paths(track, paths)
             short_path = paths["output_dir"] / f"{track.slug}-short.mp4"
             if not short_path.exists():
-                short_path = render_short(track, paths["output_dir"], config)
+                short_path = render_short(short_track, paths["output_dir"], config)
 
             short_metadata = build_metadata(track, config.data, paths["thumbnail_dir"], video_type="short")
             short_publish_at = None
             if publish_time:
-                offset = int(config.get("shorts", "publish_offset_minutes", default=30))
-                short_time = publish_time + timedelta(minutes=offset)
+                short_time = short_publish_time_for_normal(config, publish_time, blocked_times)
                 short_publish_at = to_rfc3339_utc(short_time)
                 blocked_times.add(short_publish_at)
             elif schedule:
@@ -190,18 +251,20 @@ def upload_tracks(
                 short_publish_at = to_rfc3339_utc(short_time)
 
             if dry_run:
-                print(f"Would upload short: {short_path}")
-                print(f"Short title: {short_metadata.title}")
-                print(f"Short privacy: {'private scheduled' if short_publish_at else privacy}")
+                emit_log(f"Would upload short: {short_path}")
+                emit_log(f"Short title: {short_metadata.title}")
+                emit_log(f"Short privacy: {'private scheduled' if short_publish_at else privacy}")
                 if short_publish_at:
-                    print(f"Short publish at: {short_publish_at}")
+                    emit_log(f"Short publish at: {short_publish_at}")
             else:
+                emit_progress("Uploading YouTube", 90, f"Preparing short upload: {short_path.name}")
                 short_video_id = upload_video(
                     service=service,
                     video_path=short_path,
                     metadata=short_metadata,
                     privacy_status=privacy,
                     publish_at=short_publish_at,
+                    progress_callback=upload_progress(short_path, "Short"),
                 )
                 state.add_upload(
                     {
@@ -212,12 +275,147 @@ def upload_tracks(
                         "publish_at": short_publish_at,
                     }
                 )
-                print(f"Uploaded short: https://www.youtube.com/watch?v={short_video_id}")
+                emit_log(f"Uploaded short: https://www.youtube.com/watch?v={short_video_id}")
         elif "short" in upload_types and state.has_upload(track.audio_path, "short"):
-            print(f"Skip short already uploaded: {track.title}")
+            emit_log(f"Skip short already uploaded: {track.title}")
 
-        if not dry_run and state.is_complete(track.audio_path, bool(config.get("shorts", "enabled", default=False))):
+        if not dry_run and state.is_complete(
+            track.audio_path,
+            bool(config.get("shorts", "enabled", default=False)),
+            upload_types,
+        ):
             state.mark_processed(track.audio_path)
+
+
+def scheduled_upload_types(config, shorts_enabled: bool) -> set[str]:
+    configured = config.get("schedule", "upload_types", default=None)
+    if configured:
+        upload_types = {str(item).strip().lower() for item in configured}
+    else:
+        upload_types = {"normal", "short"} if shorts_enabled else {"normal"}
+    if not shorts_enabled:
+        upload_types.discard("short")
+    return upload_types & {"normal", "short"}
+
+
+def short_track_for_paths(track, paths) -> object:
+    short_image_dir = paths.get("short_image_dir")
+    if short_image_dir:
+        return track_with_images_from_dir(track, short_image_dir)
+    return track
+
+
+def short_publish_time_for_normal(config, normal_publish_time: datetime, blocked_times: set[str]) -> datetime:
+    configured = config.get("shorts", "publish_times", default=None)
+    if isinstance(configured, list) and configured:
+        for item in configured:
+            candidate = datetime.combine(normal_publish_time.date(), parse_time(str(item)), tzinfo=normal_publish_time.tzinfo)
+            candidate_key = to_rfc3339_utc(candidate)
+            if candidate > normal_publish_time and candidate_key not in blocked_times:
+                return candidate
+    offset = int(config.get("shorts", "publish_offset_minutes", default=30))
+    return normal_publish_time + timedelta(minutes=offset)
+
+
+def should_render_normal_before_short(config, upload_types: set[str]) -> bool:
+    return (
+        "short" in upload_types
+        and "normal" not in upload_types
+        and bool(config.get("schedule", "render_normal_when_short_only", default=False))
+    )
+
+
+def maybe_create_duration_collection(config, paths, state: StateStore, dry_run: bool) -> None:
+    collection_config = config.get("collection", default={})
+    target_minutes = float(collection_config.get("target_duration_minutes", 0) or 0)
+    if target_minutes <= 0 or not bool(collection_config.get("auto_create", False)):
+        return
+
+    tracks = [
+        track
+        for track in discover_tracks(paths["audio_dir"], paths["image_dir"])
+        if not state.is_collected(track.audio_path)
+    ]
+    if dry_run:
+        print(f"Would check long collection target: about {target_minutes:g} minutes.")
+        return
+
+    try:
+        output, source_audio = create_collection(
+            tracks=tracks,
+            output_dir=paths["output_dir"],
+            state_dir=paths["state_dir"],
+            collection_config=collection_config,
+        )
+    except ValueError as exc:
+        print(f"Long collection not ready: {exc}")
+        return
+
+    state.mark_collected(source_audio)
+    print(f"Created long collection: {output}")
+    deleted = cleanup_collection_source_files(
+        tracks=tracks,
+        source_audio=source_audio,
+        paths=paths,
+        config=config,
+        collection_config=collection_config,
+    )
+    if deleted:
+        print(f"Cleaned {deleted} source media file(s).")
+
+
+def cleanup_collection_source_files(
+    tracks,
+    source_audio: list[Path],
+    paths,
+    config,
+    collection_config,
+) -> int:
+    if not bool(collection_config.get("cleanup_after_create", True)):
+        return 0
+
+    source_audio_set = {audio.resolve() for audio in source_audio}
+    source_tracks = [track for track in tracks if track.audio_path.resolve() in source_audio_set]
+    targets: set[Path] = set()
+    if bool(collection_config.get("delete_source_audio", True)):
+        targets.update(track.audio_path for track in source_tracks)
+    if bool(collection_config.get("delete_source_images", True)):
+        image_files = list_files(paths["image_dir"], IMAGE_EXTENSIONS)
+        for track in source_tracks:
+            targets.update(find_matching_images(track.audio_path, image_files))
+    if bool(collection_config.get("delete_source_videos", True)):
+        targets.update(paths["output_dir"] / f"{track.slug}.mp4" for track in source_tracks)
+    if bool(collection_config.get("delete_source_shorts", True)):
+        targets.update(paths["output_dir"] / f"{track.slug}-short.mp4" for track in source_tracks)
+    if bool(collection_config.get("delete_source_thumbnails", True)):
+        thumbnail_files = list_files(paths["thumbnail_dir"], IMAGE_EXTENSIONS)
+        for track in source_tracks:
+            targets.update(find_matching_images(track.audio_path, thumbnail_files))
+            metadata = build_metadata(track, config.data, paths["thumbnail_dir"])
+            if metadata.thumbnail_path:
+                targets.add(metadata.thumbnail_path)
+
+    return delete_files_in_allowed_dirs(
+        targets=targets,
+        allowed_dirs={
+            paths["audio_dir"].resolve(),
+            paths["image_dir"].resolve(),
+            paths["output_dir"].resolve(),
+            paths["thumbnail_dir"].resolve(),
+        },
+    )
+
+
+def delete_files_in_allowed_dirs(targets: set[Path], allowed_dirs: set[Path]) -> int:
+    deleted = 0
+    for target in targets:
+        resolved = target.resolve()
+        if resolved.parent not in allowed_dirs:
+            continue
+        if resolved.exists() and resolved.is_file():
+            resolved.unlink()
+            deleted += 1
+    return deleted
 
 
 def reserve_next_publish_time(
@@ -230,7 +428,23 @@ def reserve_next_publish_time(
     blocked_dates = blocked_dates or set()
     youtube_date_counts = youtube_date_counts if youtube_date_counts is not None else {}
     timezone_name = config.get("schedule", "timezone")
-    daily_limit = int(config.get("schedule", "videos_per_day", default=2))
+
+    start_date_str = config.get("schedule", "start_date", default=None)
+    if start_date_str:
+        try:
+            from datetime import date
+            from zoneinfo import ZoneInfo
+            start_date = date.fromisoformat(start_date_str)
+            tz = ZoneInfo(timezone_name)
+            curr_date = datetime.now(tz).date()
+            temp_date = curr_date
+            while temp_date < start_date:
+                blocked_dates.add(temp_date.isoformat())
+                temp_date += timedelta(days=1)
+        except Exception as exc:
+            print(f"Error parsing schedule start_date: {exc}")
+
+    daily_limit = effective_daily_upload_limit(config)
 
     while True:
         publish_time = next_publish_times(
@@ -258,14 +472,33 @@ def reserve_next_publish_time(
         return publish_time
 
 
+def effective_daily_upload_limit(config) -> int:
+    configured = config.get("schedule", "daily_upload_limit", default=None)
+    if configured:
+        return int(configured)
+    videos_per_day = int(config.get("schedule", "videos_per_day", default=2))
+    upload_types = config.get("schedule", "upload_types", default=None)
+    if isinstance(upload_types, list):
+        type_count = len({str(item).strip().lower() for item in upload_types if str(item).strip()})
+        return max(videos_per_day, videos_per_day * max(1, type_count))
+    return videos_per_day
+
+
 def render_short(track, output_dir: Path, config) -> Path:
     shorts_config = dict(config.get("render"))
+    shorts_config["subscribe_overlay"] = {"enabled": False}
     shorts = config.get("shorts")
     shorts_config["resolution"] = shorts.get("resolution", "1080x1920")
     for key in [
         "subtitle_font_size",
         "subtitle_margin_v",
         "use_synced_subtitles",
+        "zoom_max",
+        "zoom_step",
+        "short_dynamic_effects",
+        "image_segment_seconds",
+        "contextual_image_timing",
+        "background_music",
     ]:
         if key in shorts:
             shorts_config[key] = shorts[key]

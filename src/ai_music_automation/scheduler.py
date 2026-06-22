@@ -14,6 +14,10 @@ def next_publish_times(
 ) -> list[datetime]:
     tz = ZoneInfo(timezone_name)
     current = now.astimezone(tz) if now else datetime.now(tz)
+    if isinstance(configured_times, str):
+        configured_times = [configured_times]
+    elif not isinstance(configured_times, (list, tuple, set)):
+        configured_times = [configured_times] if configured_times else []
     blocked_times = blocked_times or set()
     blocked_dates = blocked_dates or set()
     results: list[datetime] = []

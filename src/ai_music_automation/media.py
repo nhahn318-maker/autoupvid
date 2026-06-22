@@ -58,9 +58,20 @@ def discover_tracks(audio_dir: Path, image_dir: Path) -> list[Track]:
             matching_images = newest_images[:5]
         if not matching_images:
             continue
-        tracks.append(Track(audio_path=audio, image_paths=tuple(matching_images[:5]), title=track_title(audio)))
+        tracks.append(Track(audio_path=audio, image_paths=tuple(matching_images[:40]), title=track_title(audio)))
 
     return tracks
+
+
+def track_with_images_from_dir(track: Track, image_dir: Path, count: int = 40) -> Track:
+    image_files = list_files(image_dir, IMAGE_EXTENSIONS)
+    matching_images = find_matching_images(track.audio_path, image_files)
+    if not matching_images and image_files:
+        newest_images = sorted(image_files, key=lambda path: path.stat().st_mtime, reverse=True)
+        matching_images = newest_images[:count]
+    if not matching_images:
+        return track
+    return Track(audio_path=track.audio_path, image_paths=tuple(matching_images[:count]), title=track.title)
 
 
 def find_matching_image(audio: Path, images: list[Path]) -> Path | None:

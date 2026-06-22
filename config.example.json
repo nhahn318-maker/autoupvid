@@ -17,10 +17,26 @@
       "Bản remix mang không khí phố đêm và mưa lạnh, kết hợp bolero trữ tình với nhịp vinahouse hiện đại, dễ nghe và giàu cảm xúc."
     ],
     "default_author": "Trần Thiện Nhân",
-    "default_tags": ["Bolero", "Remix", "Nhạc trữ tình", "Nhạc hay"],
+    "default_tags": [
+      "Bolero",
+      "Remix",
+      "Nhạc trữ tình",
+      "Nhạc hay"
+    ],
     "category_id": "10",
     "privacy_status": "private",
     "made_for_kids": false
+  },
+  "notifications": {
+    "email_enabled": false,
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_username": "",
+    "smtp_password": "",
+    "from_email": "",
+    "to_email": "",
+    "notify_on_success": true,
+    "notify_on_failure": true
   },
   "render": {
     "resolution": "1920x1080",
@@ -51,22 +67,73 @@
     ],
     "description_suffix": "\n\n#Shorts",
     "publish_offset_minutes": 30,
+    "zoom_max": 1.28,
+    "zoom_step": 0.0011,
+    "short_dynamic_effects": true,
     "subtitle_font_size": 8,
     "subtitle_margin_v": 70,
-    "use_synced_subtitles": true
+    "use_synced_subtitles": true,
+    "publish_times": [
+      "18:00"
+    ]
   },
   "collection": {
     "enabled": true,
     "size": 5,
+    "cleanup_after_create": true,
+    "delete_source_audio": true,
+    "delete_source_images": true,
+    "delete_source_videos": true,
+    "delete_source_shorts": true,
+    "delete_source_thumbnails": true,
+    "cleanup_after_mega": true,
+    "delete_merged_collections": true,
     "output_prefix": "bolero-remix-tuyen-tap",
+    "mega_output_prefix": "bolero-remix-dai-tuyen-tap",
     "title_template": "Bolero Remix 2026 - Tuyển Tập 5 Ca Khúc Hay Nhất",
-    "description_template": "Tuyển tập 5 ca khúc bolero vinahouse remix được ghép tự động từ các video đã render.\n\n#bolero  #remix  #nhactrutinh  #nhachay"
+    "description_template": "Tuyển tập 5 ca khúc bolero vinahouse remix được ghép tự động từ các video đã render.\n\n#bolero  #remix  #nhactrutinh  #nhachay",
+    "title_templates": [
+      "Nhac Tru Tinh Remix Moi Nhat 2026 - LK Bolero Remix TikTok Hay Nhat",
+      "Nhac Song Tru Tinh Bolero Remix 2026 - LK Sen Nhay Bass Cuc Xung",
+      "LK Nhac Song Bolero Tru Tinh Remix 2026 - Danh Bay Dan Choi",
+      "LK Nhac Song Bolero Remix 2026 Nghe Da Tai - Nhac San Bolero Remix",
+      "Nhac Tru Tinh Bolero Remix Moi Nhat - LK Bolero Remix TikTok 2026",
+      "LK Bolero Remix 2026 Cuc Xung - Nhac Song Tru Tinh Hay Nhat",
+      "Nhac Song Bolero Remix 2026 - Lien Khuc Tru Tinh Bass Manh De Nghe",
+      "Bolero Vinahouse Remix 2026 - LK Nhac Tru Tinh Remix Hot TikTok"
+    ],
+    "description_templates": [
+      "Lien khuc bolero remix 2026 voi mau nhac tru tinh quen thuoc, ket hop nhip remix/vinahouse soi dong, de nghe va bat tai. Phu hop de mo khi lai xe, lam viec hoac thu gian.\n\n#boleroremix #nhacsongbolero #nhactrutinhremix #bolero2026",
+      "Tuyen tap nhac song bolero remix voi tiet tau bass xung hon, van giu chat tru tinh de nghe. Moi ban nghe tron bo va ung ho kenh.\n\n#bolerovinahouse #boleroremix #nhacsong #nhacremix",
+      "LK bolero remix chon loc theo phong cach nhac song, co nhung doan soi dong va nhung khuc tru tinh nhe nha.\n\n#nhactrutinh #remix2026 #bolerohay #vinahouse",
+      "Nhung ca khuc bolero duoc phoi lai de nghe moi me hon, phu hop voi nguoi thich bolero nhung muon tiet tau bat tai.\n\n#bolero2026 #nhacbolero #boleroremix"
+    ],
+    "mega_title_templates": [
+      "Đại LK Nhạc Trữ Tình Bolero Remix 2026 - Nghe Đã Tai Bass Cực Xung",
+      "Đại Tuyển Tập Nhạc Sống Bolero Remix 2026 - LK Trữ Tình Hay Nhất",
+      "Liên Khúc Đại Tập Bolero Remix TikTok 2026 - Nhạc Sống Cực Xung",
+      "Đại Tuyển Tập Bolero Vinahouse Remix 2026 - Đánh Bay Dân Chơi",
+      "Nhạc Trữ Tình Remix Mới Nhất 2026 - Đại LK Bolero Remix Nghe Liên Tục",
+      "Đại LK Nhạc Sống Bolero Trữ Tình Remix - Bass Căng Nghe Đã Tai"
+    ],
+    "mega_description_templates": [
+      "Đại liên khúc bolero remix 2026 với màu nhạc trữ tình quen thuộc, kết hợp nhịp remix/vinahouse sôi động, dễ nghe và bắt tai. Phù hợp để mở khi lái xe, làm việc hoặc thư giãn.\n\n#boleroremix #nhacsongbolero #nhactrutinhremix #bolero2026",
+      "Đại tuyển tập nhạc sống bolero remix với tiết tấu bass xung hơn, vẫn giữ chất trữ tình dễ nghe. Mời bạn nghe trọn bộ và ủng hộ kênh.\n\n#bolerovinahouse #boleroremix #nhacsong #nhacremix",
+      "Đại LK bolero remix chọn lọc theo phong cách nhạc sống, có những đoạn sôi động và những khúc trữ tình nhẹ nhàng.\n\n#nhactrutinh #remix2026 #bolerohay #vinahouse",
+      "Những ca khúc bolero được phối lại để nghe mới mẻ hơn, phù hợp với người thích bolero nhưng muốn tiết tấu bắt tai.\n\n#bolero2026 #nhacbolero #boleroremix"
+    ]
   },
   "schedule": {
-    "videos_per_day": 2,
-    "publish_times": ["06:00", "18:00"],
+    "videos_per_day": 1,
+    "publish_times": [
+      "10:00"
+    ],
     "timezone": "Asia/Ho_Chi_Minh",
-    "upload_privacy_when_no_schedule": "private"
+    "upload_privacy_when_no_schedule": "private",
+    "upload_types": [
+      "normal",
+      "short"
+    ]
   },
   "active_account": "account1",
   "accounts": {
@@ -120,19 +187,65 @@
         ],
         "description_suffix": "\n\n#Shorts #truyenke #nhanqua #baihoccuocsong"
       },
+      "collection": {
+        "output_prefix": "story-tuyen-tap",
+        "mega_output_prefix": "story-dai-tuyen-tap",
+        "title_template": "Tuyen Tap 5 Cau Chuyen Y Nghia",
+        "description_template": "Tuyen tap 5 cau chuyen duoc ke bang giong doc AI, mang mau sac doi song, nhan qua va nhung bai hoc dang suy ngam.\n\n#truyenke #nhanqua #baihoccuocsong #story",
+        "mega_title_template": "Đại Tuyển Tập Câu Chuyện Ý Nghĩa",
+        "mega_description_template": "Đại tuyển tập nhiều câu chuyện ý nghĩa, phù hợp để nghe lúc thư giãn, suy ngẫm và tìm lại sự bình an trong cuộc sống.\n\n#truyenke #nhanqua #baihoccuocsong #story",
+        "target_duration_minutes": 30,
+        "auto_create": true,
+        "source_include": [],
+        "source_exclude": [],
+        "title_templates": [
+          "Tuyen Tap 5 Cau Chuyen Y Nghia De Suy Ngam",
+          "5 Cau Chuyen Nhan Qua Va Bai Hoc Cuoc Song",
+          "Truyen Ke Dem Khuya - 5 Cau Chuyen Sau Sac",
+          "Tuyen Tap Story Ngan - Nghe De Song Cham Lai",
+          "Nhung Cau Chuyen Doi Song Dang Suy Ngam"
+        ],
+        "description_templates": [
+          "Tuyen tap 5 cau chuyen ngan mang mau sac doi song, nhan qua va nhung bai hoc nhe nhang de suy ngam.\n\nCam on ban da lang nghe.\n\n#truyenke #nhanqua #baihoccuocsong",
+          "Nhung cau chuyen duoc ke bang giong doc AI, phu hop de nghe luc nghi ngoi, truoc khi ngu hoac khi muon song cham lai.\n\nChuc ban tim thay mot dieu y nghia trong moi cau chuyen.\n\n#story #truyenngan #cuocsong",
+          "5 mau chuyen doi thuong voi nhung ket thuc dang suy ngam, nhac chung ta ve long tot, su bao dung va nhan qua.\n\nCam on ban da theo doi kenh.\n\n#truyenke #nhanqua #songdep",
+          "Tuyen tap story ngan cho nhung ai thich nghe chuyen doi song va nhung bai hoc nhe nhang sau moi cau chuyen.\n\nHay lang nghe va cam nhan theo cach rieng cua ban.\n\n#baihoccuocsong #story #truyenhay",
+          "Bo 5 cau chuyen y nghia, de nghe trong nhung khoang lang, khi can mot chut binh yen va suy ngam.\n\nChuc ban mot ngay an lanh.\n\n#truyenke #cuocsong #nhanqua"
+        ],
+        "mega_title_templates": [
+          "Đại Tuyển Tập Câu Chuyện Ý Nghĩa Và Bài Học Sống",
+          "Truyện Kể Đêm Khuya - Đại Tập Nghe Liên Tục",
+          "Đại Tuyển Tập Story Nhân Quả Đáng Suy Ngẫm",
+          "Những Câu Chuyện Đời Sống - Đại Tuyển Tập",
+          "Story Chọn Lọc - Nghe Để Sống Chậm Lại"
+        ],
+        "mega_description_templates": [
+          "Đại tuyển tập gồm nhiều câu chuyện ý nghĩa, phù hợp để nghe khi thư giãn, trước lúc ngủ hoặc những lúc muốn suy ngẫm về cuộc sống.\n\nCảm ơn bạn đã lắng nghe.\n\n#truyenke #baihoccuocsong #nhanqua",
+          "Những câu chuyện đời thường được ghép thành một đại tập nghe liên tục, mỗi câu chuyện mang một bài học nhẹ nhàng.\n\nChúc bạn có những phút giây bình yên.\n\n#story #truyenhay #songdep",
+          "Đại tập story với màu sắc nhân quả, tình người và cách sống, phù hợp cho người thích nghe chuyện chậm rãi.\n\nHãy theo dõi kênh để nghe thêm các câu chuyện mới.\n\n#nhanqua #truyenke #cuocsong",
+          "Bộ câu chuyện đại tập dành cho những khoảng thời gian yên tĩnh, khi bạn muốn lắng nghe và nhìn lại những điều bình dị.\n\nCảm ơn bạn đã đồng hành cùng kênh.\n\n#baihoccuocsong #story #truyenngan",
+          "Một đại tuyển tập story chọn lọc với những câu chuyện gần gũi, dễ nghe và dễ suy ngẫm sau mỗi phần.\n\nChúc bạn nghe chuyện vui vẻ và an lành.\n\n#truyenke #songcham #nhanqua"
+        ]
+      },
       "paths": {
         "audio_dir": "data/input/story/audio",
         "image_dir": "data/input/story/images",
         "thumbnail_dir": "data/input/story/thumbnails",
-        "output_dir": "data/output/story"
+        "output_dir": "data/output/story",
+        "short_image_dir": "data/input/story/images"
       },
       "schedule": {
-        "videos_per_day": 1,
+        "videos_per_day": 2,
         "publish_times": [
-          "18:00"
+          "11:00",
+          "18:30"
         ],
         "timezone": "Asia/Ho_Chi_Minh",
-        "upload_privacy_when_no_schedule": "private"
+        "upload_privacy_when_no_schedule": "private",
+        "upload_types": [
+          "short"
+        ],
+        "render_normal_when_short_only": true
       }
     }
   },
@@ -143,6 +256,100 @@
     "output_dir": "data/output",
     "state_dir": "data/state",
     "credentials_file": "client_secret.json",
-    "token_file": "token.json"
+    "token_file": "token.json",
+    "short_image_dir": "data/input/short_images"
+  },
+  "fullauto": {
+    "enabled": true,
+    "prompts_dir": "data/input/story/fullauto/prompts",
+    "image_pool_dir": "data/input/story/fullauto/images",
+    "draft_dir": "data/input/story/fullauto/drafts",
+    "videos_per_run": 1,
+    "gemini_model": "gemini-2.5-flash",
+    "long_target_minutes": 60,
+    "long_chapter_count": 10,
+    "long_videos_per_day": 1,
+    "long_publish_times": [
+      "20:00"
+    ],
+    "long_daily_upload_limit": 3,
+    "long_hashtags": [
+      "#phatphap",
+      "#loiphatday",
+      "#kinhphapcu",
+      "#binhan",
+      "#songtinhthuc",
+      "#buongbo",
+      "#nhanqua",
+      "#thienlanh"
+    ],
+    "long_voice_rate": "-5%",
+    "long_resolution": "1920x1080",
+    "long_image_segment_seconds": 5,
+    "long_audio_visualizer_enabled": true,
+    "long_audio_visualizer_width": 960,
+    "long_audio_visualizer_height": 120,
+    "long_audio_visualizer_margin_bottom": 55,
+    "long_audio_visualizer_color": "white",
+    "long_audio_visualizer_mode": "cline",
+    "long_audio_visualizer_gain": 4,
+    "long_wave_asset_width_percent": 52,
+    "long_wave_asset_margin_percent": 3,
+    "long_subtitle_font_size": 10,
+    "long_subtitle_margin_v": 150,
+    "long_falling_effect_opacity": 0.82,
+    "long_sticker_position": "bottom-right",
+    "long_sticker_width_percent": 11,
+    "long_sticker_margin_percent": 3,
+    "long_sticker_start_seconds": 45,
+    "long_sticker_display_seconds": 8,
+    "long_sticker_interval_seconds": 300,
+    "twenty_min_language": "vi",
+    "twenty_min_vi_language": "vi",
+    "twenty_min_vi_voice_cycle": [
+      "vi-VN-HoaiMyNeural"
+    ],
+    "twenty_min_vi_publish_times": [
+      "20:00"
+    ],
+    "twenty_min_vi_timezone": "Asia/Ho_Chi_Minh",
+    "twenty_min_target_minutes": 25,
+    "twenty_min_chapter_count": 6,
+    "twenty_min_videos_per_day": 1,
+    "twenty_min_publish_times": [
+      "20:00"
+    ],
+    "twenty_min_daily_upload_limit": 3,
+    "twenty_min_voice_rate": "-5%",
+    "twenty_min_resolution": "1920x1080",
+    "twenty_min_fps": 60,
+    "twenty_min_image_count": 5,
+    "twenty_min_image_segment_seconds": 5,
+    "twenty_min_audio_visualizer_enabled": true,
+    "twenty_min_audio_visualizer_width": 960,
+    "twenty_min_audio_visualizer_height": 120,
+    "twenty_min_audio_visualizer_margin_bottom": 55,
+    "twenty_min_audio_visualizer_color": "white",
+    "twenty_min_audio_visualizer_mode": "cline",
+    "twenty_min_audio_visualizer_gain": 4,
+    "twenty_min_wave_asset_width_percent": 52,
+    "twenty_min_wave_asset_margin_percent": 3,
+    "twenty_min_subtitle_font_size": 10,
+    "twenty_min_subtitle_margin_v": 150,
+    "twenty_min_mist_opacity": 0.60,
+    "twenty_min_sticker_position": "bottom-right",
+    "twenty_min_sticker_width_percent": 11,
+    "twenty_min_sticker_margin_percent": 3,
+    "twenty_min_sticker_start_seconds": 45,
+    "twenty_min_sticker_display_seconds": 8,
+    "twenty_min_sticker_interval_seconds": 180,
+    "voice_cycle": [
+      "vi-VN-HoaiMyNeural",
+      "vi-VN-NamMinhNeural"
+    ],
+    "gemini_fallback_models": [
+      "gemini-2.0-flash-lite",
+      "gemini-2.0-flash"
+    ]
   }
 }

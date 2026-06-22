@@ -3,228 +3,477 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AI Music Automation</title>
-    <link rel="stylesheet" href="/static/styles.css" />
+    <title>Auto Vid</title>
+    <link rel="stylesheet" href="/static/styles.css?v=20260622-single-channel-ui" />
   </head>
   <body>
     <div id="toast" class="toast" hidden></div>
 
     <header class="topbar">
-      <div class="brand">
-        <h1>AI Music Automation</h1>
-        <p id="connection">Local dashboard</p>
+      <div class="brandRow">
+        <h1>Auto Vid</h1>
       </div>
-      <div class="headerControls">
+      <div class="topStatus">
+        <span id="connection" class="connectedDot">Connecting</span>
+        <span id="credentialBadge" class="pill">Checking</span>
+        <button id="refreshBtn" class="iconBtn" type="button" title="Refresh" aria-label="Refresh">
+          <i data-lucide="refresh-cw"></i>
+        </button>
         <select id="accountSelect" aria-label="YouTube account"></select>
-        <button id="refreshBtn" type="button">Refresh</button>
       </div>
     </header>
 
-    <main>
-      <section class="workspaceBar" aria-label="Workspace">
-        <div class="channelSwitch">
-          <button id="storyModeBtn" type="button">Story</button>
-          <button id="boboModeBtn" type="button">Bobo Remix</button>
-          <button id="nhahnModeBtn" type="button">Nhahn Bolero</button>
-        </div>
-        <div class="workspaceInfo">
-          <strong id="modeTitle">Mode</strong>
-          <p id="modeInfo"></p>
-        </div>
-      </section>
+    <div class="appShell">
+      <aside class="sidebar" aria-label="Navigation">
+        <a class="navItem active" href="#dashboard" data-page="dashboard"><i data-lucide="home"></i><span>Dashboard</span></a>
+        <a class="navItem" href="#tracks" data-page="tracks"><i data-lucide="music"></i><span>Tracks</span></a>
+        <a class="navItem" href="#uploads" data-page="uploads"><i data-lucide="upload"></i><span>Uploads</span></a>
+        <a class="navItem" href="#football" data-page="football"><i data-lucide="trophy"></i><span>Football</span></a>
+        <a class="navItem" href="#lyrics" data-page="lyrics"><i data-lucide="captions"></i><span>Lyrics</span></a>
+        <a class="navItem" href="#collections" data-page="collections"><i data-lucide="folder"></i><span>Collections</span></a>
+        <a class="navItem" href="#story" data-page="story"><i data-lucide="wand-sparkles"></i><span>Story Tools</span></a>
+        <a class="navItem" href="#fullauto" data-page="fullauto"><i data-lucide="bot"></i><span>Full Auto</span></a>
+        <a class="navItem" href="#postcard" data-page="postcard"><i data-lucide="messages-square"></i><span>Postcard</span></a>
+        <a class="navItem" href="#tiktok" data-page="tiktok"><i data-lucide="video"></i><span>TikTok</span></a>
+        <a class="navItem" href="#config" data-page="config"><i data-lucide="settings"></i><span>Config</span></a>
+        <a class="navItem" href="#jobs" data-page="jobs"><i data-lucide="list-checks"></i><span>Jobs</span></a>
+      </aside>
 
-      <section class="metrics" aria-label="Stats">
-        <article><span id="audioCount">0</span><small>Audio</small></article>
-        <article><span id="imageCount">0</span><small>Images</small></article>
-        <article><span id="pendingCount">0</span><small>Pending</small></article>
-        <article><span id="outputCount">0</span><small>Videos</small></article>
-        <article><span id="uploadCount">0</span><small>Uploads</small></article>
-      </section>
+      <main class="content">
+        <section id="page-dashboard" class="page active">
+          <div class="pageTitle">
+            <h2>Dashboard</h2>
+            <p id="dashboardSub">Overview</p>
+          </div>
+          <div class="metrics" aria-label="Stats">
+            <article><span class="metricIcon blue"><i data-lucide="music-2"></i></span><strong id="audioCount">0</strong><small>Audio Files</small></article>
+            <article><span class="metricIcon violet"><i data-lucide="image"></i></span><strong id="imageCount">0</strong><small>Images</small></article>
+            <article><span class="metricIcon amber"><i data-lucide="circle-alert"></i></span><strong id="pendingCount">0</strong><small>Pending Tracks</small></article>
+            <article><span class="metricIcon green"><i data-lucide="video"></i></span><strong id="outputCount">0</strong><small>Output Videos</small></article>
+            <article><span class="metricIcon teal"><i data-lucide="upload"></i></span><strong id="uploadCount">0</strong><small>Uploads</small></article>
+          </div>
+          <div class="policyBox">
+            <i data-lucide="info"></i>
+            <div><strong>Upload Policy</strong><p id="uploadPolicy">Checking upload policy.</p></div>
+          </div>
+          <div class="quickActions">
+            <button id="renderBtn" type="button"><i data-lucide="clapperboard"></i>Render Pending</button>
+            <button id="dryBtn" type="button"><i data-lucide="list-checks"></i>Dry Run</button>
+            <button id="uploadBtn" class="primary" type="button"><i data-lucide="upload-cloud"></i>Schedule Upload</button>
+            <button id="syncBtn" type="button"><i data-lucide="refresh-cw"></i>Sync State</button>
+          </div>
+          <div class="twoCol">
+            <section class="panel">
+              <h3><i data-lucide="calendar-days"></i> Schedule Preview</h3>
+              <div id="schedulePreview" class="scheduleList"></div>
+            </section>
+            <section class="panel">
+              <h3>System Status</h3>
+              <div class="statusRows">
+                <div><span>YouTube API</span><strong id="youtubeApiState">Checking</strong></div>
+                <div><span>YouTube Token</span><strong id="youtubeTokenState">Checking</strong></div>
+                <div><span>TikTok API</span><strong>Review demo</strong></div>
+                <div><span>TTS Service</span><strong>Ready</strong></div>
+              </div>
+            </section>
+          </div>
+          <section class="panel">
+            <h3>Current Queue</h3>
+            <div id="queueList" class="queueList"></div>
+          </section>
+        </section>
 
-      <section class="commandBar" aria-label="Actions">
-        <button id="renderBtn" type="button">Render Pending</button>
-        <button id="dryBtn" type="button">Dry Run</button>
-        <button id="uploadBtn" type="button" class="primary">Schedule Upload</button>
-        <button id="syncBtn" type="button">Sync State</button>
-        <span id="uploadPolicy" class="badge">Checking</span>
-      </section>
-
-      <section id="jobsPanel" class="panel jobsPanel collapsed">
-        <div class="panelHead">
-          <div>
-            <h2>Jobs</h2>
-            <p id="jobStatus" class="panelSub"></p>
-          </div>
-          <button id="toggleJobsBtn" type="button">Show</button>
-        </div>
-        <pre id="jobLog"></pre>
-      </section>
-
-      <section class="grid topGrid">
-        <div class="panel">
-          <div class="panelHead">
-            <div>
-              <h2>Input Files</h2>
-              <p class="panelSub">Audio, images, thumbnails</p>
-            </div>
-            <div class="miniActions">
-              <button data-folder="audio" type="button">Audio</button>
-              <button data-folder="images" type="button">Images</button>
-              <button data-folder="thumbnails" type="button">Thumbs</button>
-              <button data-folder="output" type="button">Output</button>
-            </div>
-          </div>
-          <div class="uploadRows">
-            <label>
-              <span>MP3 / Audio</span>
-              <input id="audioUpload" type="file" multiple accept=".mp3,.wav,.m4a,.flac,.aac,.ogg" />
-            </label>
-            <label>
-              <span>Images</span>
-              <input id="imageUpload" type="file" multiple accept=".jpg,.jpeg,.png,.webp" />
-            </label>
-            <label>
-              <span>Thumbnails</span>
-              <input id="thumbUpload" type="file" multiple accept=".jpg,.jpeg,.png,.webp" />
-            </label>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panelHead">
-            <div>
-              <h2>Schedule</h2>
-              <p class="panelSub">Next upload slots</p>
-            </div>
-            <span id="credentialBadge" class="badge">Checking</span>
-          </div>
-          <div id="schedulePreview" class="scheduleList"></div>
-        </div>
-      </section>
-
-      <section id="storyPanel" class="panel">
-        <div class="panelHead">
-          <div>
-            <h2>Story Voice</h2>
-            <p class="panelSub">Generate narration and attach assets</p>
-          </div>
-          <div class="miniActions">
-            <button id="storyOneClickBtn" type="button">Story One-Click</button>
-            <button id="ttsBtn" type="button">Generate Voice</button>
-          </div>
-        </div>
-        <div class="ttsGrid">
-          <label>
-            <span>Title</span>
-            <input id="ttsTitle" type="text" placeholder="Story title" />
-          </label>
-          <label>
-            <span>Voice</span>
-            <select id="ttsVoice"></select>
-          </label>
-        </div>
-        <textarea id="ttsText" class="ttsText" placeholder="Paste story text here"></textarea>
-        <p id="ttsStatus" class="ttsStatus"></p>
-        <div class="voicePreview">
-          <div>
-            <strong>Voice Preview</strong>
-            <span id="voicePreviewInfo">No MP3 selected</span>
-          </div>
-          <audio id="voicePreview" controls preload="metadata"></audio>
-        </div>
-        <div class="storyAssets">
-          <label>
-            <span>Story MP3</span>
-            <select id="storyAudioSelect"></select>
-          </label>
-          <label>
-            <span>5 Images</span>
-            <input id="storyImagesInput" type="file" multiple accept=".jpg,.jpeg,.png,.webp" />
-          </label>
-          <label>
-            <span>Thumbnail</span>
-            <input id="storyThumbInput" type="file" accept=".jpg,.jpeg,.png,.webp" />
-          </label>
-          <button id="storyAssetsBtn" type="button">Attach To MP3</button>
-        </div>
-      </section>
-
-      <section id="collectionPanel" class="panel collectionPanel">
-        <div class="panelHead">
-          <div>
-            <h2>Tuyển Tập 5 Bài</h2>
-            <p id="collectionText"></p>
-          </div>
-          <button id="collectionBtn" type="button">Create Collection</button>
-        </div>
-        <div id="collectionVideos" class="collectionVideos"></div>
-      </section>
-
-      <section class="panel">
-        <div class="panelHead">
-          <div>
+        <section id="page-tracks" class="page">
+          <div class="pageTitle">
             <h2>Tracks</h2>
-            <p class="panelSub" id="trackSummary"></p>
+            <p id="trackSummary">Manage all tracks</p>
           </div>
-          <div class="legend">
-            <span class="status waiting">Pending</span>
-            <span class="status ready">Rendered</span>
-            <span class="status done">Uploaded</span>
-          </div>
-        </div>
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Audio</th>
-                <th>Assets</th>
-                <th>Normal</th>
-                <th>Short</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="trackRows"></tbody>
-          </table>
-        </div>
-      </section>
+          <section class="panel videoReviewPanel">
+            <div class="panelHead">
+              <h3><i data-lucide="circle-play"></i> Review Video</h3>
+              <span id="videoReviewInfo" class="muted">Choose a preview button to watch here.</span>
+            </div>
+            <video id="videoReviewPlayer" class="videoReview" controls preload="metadata"></video>
+          </section>
+          <section class="panel">
+            <div class="panelHead">
+              <h3><i data-lucide="clipboard-list"></i> Manual Upload Info</h3>
+              <span id="manualUploadSummary" class="muted">Rendered videos that still need upload.</span>
+            </div>
+            <div id="manualUploadList" class="manualUploadList"></div>
+          </section>
+          <section class="panel flush">
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Audio</th>
+                    <th>Assets</th>
+                    <th>Long Video</th>
+                    <th>Short Video</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="trackRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
 
-      <section class="grid reviewGrid">
-        <div class="panel">
-          <div class="panelHead">
+        <section id="page-uploads" class="page">
+          <div class="pageTitle">
+            <h2>File Uploads</h2>
+            <p id="uploadsSub">Upload audio, images, and thumbnails</p>
+          </div>
+          <div class="policyBox slim">Auto pipeline starts when a pending track has audio, image, and matching thumbnail.</div>
+          <div class="uploadCards">
+            <article class="uploadCard">
+              <span class="metricIcon blue"><i data-lucide="music"></i></span>
+              <h3>Audio Files</h3><p>.mp3, .wav, .m4a</p>
+              <label class="fileButton"><i data-lucide="upload"></i><span>Upload Files</span><input id="audioUpload" type="file" multiple accept=".mp3,.wav,.m4a,.flac,.aac,.ogg" /></label>
+            </article>
+            <article class="uploadCard">
+              <span class="metricIcon violet"><i data-lucide="image"></i></span>
+              <h3>Long Video Images</h3><p>5 horizontal images</p>
+              <label class="fileButton"><i data-lucide="upload"></i><span>Upload Files</span><input id="imageUpload" type="file" multiple accept=".jpg,.jpeg,.png,.webp" /></label>
+            </article>
+            <article class="uploadCard">
+              <span class="metricIcon amber"><i data-lucide="image"></i></span>
+              <h3>Short Images</h3><p>5 vertical images</p>
+              <label class="fileButton"><i data-lucide="upload"></i><span>Upload Files</span><input id="shortImageUpload" type="file" multiple accept=".jpg,.jpeg,.png,.webp" /></label>
+            </article>
+            <article class="uploadCard">
+              <span class="metricIcon green"><i data-lucide="image-plus"></i></span>
+              <h3>Thumbnails</h3><p>.jpg, .png</p>
+              <label class="fileButton"><i data-lucide="upload"></i><span>Upload Files</span><input id="thumbUpload" type="file" multiple accept=".jpg,.jpeg,.png,.webp" /></label>
+            </article>
+          </div>
+          <section class="panel">
+            <h3>Quick Folder Access</h3>
+            <div class="folderGrid">
+              <button data-folder="audio" type="button"><i data-lucide="folder"></i>Audio Folder</button>
+              <button data-folder="images" type="button"><i data-lucide="folder"></i>Long Images</button>
+              <button data-folder="short-images" type="button"><i data-lucide="folder"></i>Short Images</button>
+              <button data-folder="thumbnails" type="button"><i data-lucide="folder"></i>Thumbs Folder</button>
+              <button data-folder="output" type="button"><i data-lucide="folder"></i>Output Folder</button>
+            </div>
+          </section>
+          <section class="panel">
+            <h3>Recent Uploads</h3>
+            <div id="recentUploads" class="recentList"></div>
+          </section>
+        </section>
+
+        <section id="page-football" class="page">
+          <div class="pageTitle">
+            <h2>Football Shorts</h2>
+            <p>Generate MP3, find event, team, and player images from multiple open sources, then render a Short.</p>
+          </div>
+          <section class="panel">
+            <div class="formGrid">
+              <label><span>Title</span><input id="footballTitle" type="text" placeholder="Messi ghi bàn khiến cả sân nổ tung" /></label>
+              <label><span>Article URL</span><input id="footballArticleUrl" type="url" placeholder="Paste football article link here" /></label>
+              <label>
+                <span>Language</span>
+                <select id="footballLanguage">
+                  <option value="vi">Tieng Viet</option>
+                  <option value="en">English</option>
+                </select>
+              </label>
+              <label><span>Voice</span><select id="footballVoice"></select></label>
+            </div>
+            <textarea id="footballText" class="textInput" placeholder="Paste football script here. Mention players, teams, or events clearly, for example Messi, Real Madrid, World Cup 2026..."></textarea>
+            <div class="actionsRow">
+              <button id="footballCreateBtn" class="primary" type="button"><i data-lucide="clapperboard"></i>Create Football Short</button>
+              <button id="footballVoiceOnlyBtn" type="button"><i data-lucide="mic"></i>Create Voice Only</button>
+              <button data-folder="audio" type="button"><i data-lucide="folder"></i>Audio</button>
+              <button data-folder="images" type="button"><i data-lucide="folder"></i>Images</button>
+              <button data-folder="output" type="button"><i data-lucide="folder"></i>Output</button>
+            </div>
+            <p id="footballStatus" class="formStatus"></p>
+          </section>
+          <section class="panel videoReviewPanel">
+            <div class="panelHead">
+              <h3><i data-lucide="circle-play"></i> Latest Football Short</h3>
+              <span id="footballReviewInfo" class="muted">No football video generated yet.</span>
+            </div>
+            <video id="footballReviewPlayer" class="videoReview" controls preload="metadata"></video>
+          </section>
+        </section>
+
+        <section id="page-lyrics" class="page">
+          <div class="pageTitle">
+            <h2>Lyrics Review</h2>
+            <p>Preview lyrics running with a music file. This does not upload or render anything.</p>
+          </div>
+          <section class="panel lyricsPanel">
+            <div class="lyricsUploadStrip">
+              <div>
+                <h3><i data-lucide="upload"></i> Upload Lyrics Audio</h3>
+                <p class="muted">MP3 here is stored separately from the upload/render pipeline.</p>
+              </div>
+              <label class="fileButton lyricsFileButton">
+                <i data-lucide="upload"></i>
+                <span>Upload MP3</span>
+                <input id="lyricsAudioUpload" type="file" multiple accept=".mp3,.wav,.m4a,.flac,.aac,.ogg" />
+              </label>
+            </div>
+            <div class="lyricsSetup">
+              <label>
+                <span>Audio File</span>
+                <select id="lyricsAudioSelect"></select>
+              </label>
+              <label>
+                <span>Start Offset</span>
+                <input id="lyricsOffset" type="number" value="0" step="0.1" />
+              </label>
+              <label>
+                <span>End Padding</span>
+                <input id="lyricsEndPadding" type="number" value="4" step="0.5" />
+              </label>
+              <button id="lyricsBuildBtn" class="primary" type="button"><i data-lucide="captions"></i>Build Review</button>
+            </div>
+            <label class="blockLabel">
+              <span>Lyrics</span>
+              <textarea id="lyricsText" class="textInput lyricsText" placeholder="Paste lyrics here. Each line becomes one synced lyric row."></textarea>
+            </label>
+          </section>
+          <section class="panel lyricsStage">
+            <div class="panelHead">
+              <h3><i data-lucide="music-2"></i> Preview</h3>
+              <span id="lyricsPreviewInfo" class="muted">Choose audio and build review.</span>
+            </div>
+            <audio id="lyricsAudioPlayer" controls preload="metadata"></audio>
+            <div id="lyricsDisplay" class="lyricsDisplay">
+              <span>No lyrics loaded</span>
+            </div>
+            <div id="lyricsTimeline" class="lyricsTimeline"></div>
+          </section>
+        </section>
+
+        <section id="page-collections" class="page">
+          <div class="pageTitle">
+            <h2>Collections</h2>
+            <p id="collectionsSub">Create and manage video collections</p>
+          </div>
+          <section class="panel videoReviewPanel">
+            <div class="panelHead">
+              <h3><i data-lucide="circle-play"></i> Review Video</h3>
+              <span id="collectionReviewInfo" class="muted">Choose a collection preview to watch here.</span>
+            </div>
+            <video id="collectionReviewPlayer" class="videoReview" controls preload="metadata"></video>
+          </section>
+          <div class="twoCol compact">
+            <section class="panel collectionReady">
+              <div id="collectionText"></div>
+              <button id="collectionBtn" class="primary full" type="button"><i data-lucide="folder-plus"></i>Create Collection</button>
+            </section>
+            <section class="panel">
+              <h3>Next Collection Source Videos</h3>
+              <div id="collectionSources" class="sourceList"></div>
+            </section>
+          </div>
+          <section class="panel">
+            <div class="panelHead"><h3>Created Collections</h3><span id="collectionCount"></span></div>
+            <div id="collectionOutputs" class="collectionOutputs"></div>
+          </section>
+          <section class="panel">
+            <div class="panelHead">
+              <h3><i data-lucide="hard-drive"></i> Storage Cleanup</h3>
+              <button id="cleanupAllSafeBtn" type="button"><i data-lucide="sparkles"></i>Clean Safe</button>
+            </div>
+            <div id="storageCleanupList" class="storageCleanupList"></div>
+          </section>
+          <section class="panel">
+            <h3>Merge Collections</h3>
+            <p class="muted">Select 2-4 collections to merge into a big collection</p>
+            <div class="actionsRow">
+              <button id="megaCollectionBtn" type="button" disabled><i data-lucide="folder-plus"></i>Create Big Collection</button>
+              <button id="deleteMegaCollectionBtn" class="danger" type="button" disabled><i data-lucide="trash-2"></i>Delete Big Collection</button>
+            </div>
+          </section>
+        </section>
+
+        <section id="page-story" class="page">
+          <div class="pageTitle"><h2>Story Tools</h2><p>Generate voice and attach visual assets</p></div>
+          <section class="panel">
+            <div class="formGrid">
+              <label><span>Title</span><input id="ttsTitle" type="text" placeholder="Story title" /></label>
+              <label><span>Voice</span><select id="ttsVoice"></select></label>
+            </div>
+            <textarea id="ttsText" class="textInput" placeholder="Paste story text here"></textarea>
+            <div class="actionsRow">
+              <button id="storyOneClickBtn" class="primary" type="button">Story One-Click</button>
+              <button id="ttsBtn" type="button">Generate Voice</button>
+            </div>
+            <p id="ttsStatus" class="formStatus"></p>
+          </section>
+          <section class="panel">
+            <h3>Attach Assets</h3>
+            <div class="formGrid three">
+              <label><span>Story MP3</span><select id="storyAudioSelect"></select></label>
+              <label><span>Images</span><input id="storyImagesInput" type="file" multiple accept=".jpg,.jpeg,.png,.webp" /></label>
+              <label><span>Thumbnail</span><input id="storyThumbInput" type="file" accept=".jpg,.jpeg,.png,.webp" /></label>
+            </div>
+            <audio id="voicePreview" controls preload="metadata"></audio>
+            <p id="voicePreviewInfo" class="muted">No MP3 selected</p>
+            <button id="storyAssetsBtn" type="button">Attach To MP3</button>
+          </section>
+        </section>
+
+        <section id="page-fullauto" class="page">
+          <div class="pageTitle">
+            <h2>Full Auto Story</h2>
+            <p id="fullAutoSub">Generate Buddhist Shorts</p>
+          </div>
+          <div class="policyBox">
+            <i data-lucide="shield-check"></i>
             <div>
-              <h2>Upload Preview</h2>
-              <p class="panelSub">Title, description, thumbnail</p>
+              <strong>Buddhist Shorts automation</strong>
+              <p id="fullAutoPolicy">Uses the Gemini free tier key, the two Vietnamese voices, 5 images from the image pool, then schedules 2 Shorts per day.</p>
             </div>
           </div>
-          <div id="metadataPreview" class="previewList"></div>
-        </div>
-
-        <div class="panel">
-          <div class="panelHead">
+          <section class="panel fullAutoControl">
             <div>
-              <h2>Video Preview</h2>
-              <p class="panelSub">Rendered files</p>
+              <h3><i data-lucide="sparkles"></i> Automation</h3>
+              <p class="muted" id="fullAutoStats">Checking prompt and image pool.</p>
             </div>
-            <select id="videoPreviewSelect" aria-label="Rendered video preview"></select>
+            <label class="fullAutoModel">
+              <span>Text model</span>
+              <select id="fullAutoModelSelect">
+                <option value="gemini|gemini-2.5-flash">Gemini 2.5 Flash</option>
+              </select>
+            </label>
+            <div class="channelBadge" aria-live="polite">
+              <span>Upload channel</span>
+              <strong id="fullAutoChannelName">Checking</strong>
+              <small id="fullAutoChannelHint">Full Auto follows the global channel selector above.</small>
+            </div>
+          <button id="fullAutoStartBtn" class="primary" type="button"><i data-lucide="play"></i>Start</button>
+          <button id="fullAutoLongStartBtn" class="primary" type="button"><i data-lucide="clock-3"></i>Auto Create Long Video</button>
+          <button id="fullAutoTwentyMinStartBtn" class="primary" type="button"><i data-lucide="clock-4"></i>Auto Create 20-Min Video</button>
+          </section>
+          <div class="policyBox slim" id="fullAutoLongStats">Checking long-form prompts and horizontal images.</div>
+          <div class="policyBox slim" id="fullAutoTwentyMinStats">Checking 20-minute prompts and horizontal images.</div>
+          <section class="panel">
+            <div class="panelHead">
+              <h3><i data-lucide="folder-open"></i> Folders</h3>
+              <span class="muted">Add prompts and story images here.</span>
+            </div>
+            <div class="folderGrid">
+              <button data-folder="fullauto-prompts" type="button"><i data-lucide="file-text"></i>Prompt Folder</button>
+              <button data-folder="fullauto-images" type="button"><i data-lucide="image-plus"></i>Image Pool</button>
+              <button data-folder="fullauto-drafts" type="button"><i data-lucide="folder"></i>Drafts</button>
+              <button data-folder="fullauto-long-prompts" type="button"><i data-lucide="file-text"></i>Long Prompts</button>
+              <button data-folder="fullauto-long-images" type="button"><i data-lucide="image-plus"></i>Long 16:9 Images</button>
+              <button data-folder="fullauto-long-stickers" type="button"><i data-lucide="badge"></i>Long Stickers</button>
+              <button data-folder="fullauto-long-drafts" type="button"><i data-lucide="folder"></i>Long Checkpoints</button>
+              <button data-folder="fullauto-20min-prompts" type="button"><i data-lucide="file-text"></i>20-Min Prompts</button>
+              <button data-folder="fullauto-20min-images" type="button"><i data-lucide="image-plus"></i>20-Min Images</button>
+              <button data-folder="fullauto-20min-drafts" type="button"><i data-lucide="folder"></i>20-Min Checkpoints</button>
+              <button data-folder="output" type="button"><i data-lucide="video"></i>Output Folder</button>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panelHead">
+              <h3><i data-lucide="eye"></i> Review</h3>
+              <span id="fullAutoReviewInfo" class="muted">Choose a generated item below.</span>
+            </div>
+            <div id="fullAutoDrafts" class="fullAutoDrafts"></div>
+            <textarea id="fullAutoMarkdownReview" class="textInput fullAutoMarkdown" readonly placeholder="Markdown review appears here"></textarea>
+            <audio id="fullAutoAudioReview" controls preload="metadata"></audio>
+            <video id="fullAutoVideoReview" class="videoReview" controls preload="metadata"></video>
+          </section>
+        </section>
+
+        <section id="page-postcard" class="page">
+          <div class="pageTitle"><h2>Postcard Conversation</h2><p>Generate two-voice dialogue audio</p></div>
+          <section class="panel conversationPanel">
+            <div class="formGrid">
+              <label><span>Title</span><input id="conversationTitle" type="text" placeholder="Conversation title" /></label>
+              <label><span>Voice 1</span><select id="conversationVoice1"></select></label>
+            </div>
+            <div class="formGrid">
+              <label><span>Speaker 1 Label</span><input id="conversationLabel1" type="text" value="A" /></label>
+              <label><span>Voice 2</span><select id="conversationVoice2"></select></label>
+            </div>
+            <div class="formGrid">
+              <label><span>Speaker 2 Label</span><input id="conversationLabel2" type="text" value="B" /></label>
+              <label><span>Voice 3 Optional</span><select id="conversationVoice3"></select></label>
+            </div>
+            <div class="formGrid">
+              <label><span>Speaker 3 Label</span><input id="conversationLabel3" type="text" placeholder="C" /></label>
+              <label><span>Format</span><input type="text" value="A: ... / B: ... / C: ..." readonly /></label>
+            </div>
+            <textarea id="conversationScript" class="textInput conversationText" placeholder="A: Hey, how are you?\nB: I am good. What about you?"></textarea>
+            <div class="actionsRow">
+              <button id="conversationBtn" class="primary" type="button">Generate Conversation</button>
+              <button id="conversationReviewBtn" type="button" disabled><i data-lucide="circle-play"></i>Review</button>
+            </div>
+            <p id="conversationStatus" class="formStatus"></p>
+            <div id="conversationReview" class="conversationReview" hidden>
+              <audio id="conversationAudioPlayer" controls preload="metadata"></audio>
+              <p id="conversationReviewInfo" class="muted">No conversation MP3 selected</p>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panelHead">
+              <h3><i data-lucide="music-2"></i> Generated MP3</h3>
+              <span id="conversationAudioCount" class="muted">0 files</span>
+            </div>
+            <div id="conversationAudioList" class="conversationAudioList"></div>
+          </section>
+        </section>
+
+        <section id="page-tiktok" class="page">
+          <div class="pageTitle"><h2>TikTok</h2><p>Login Kit and Content Posting API review demo</p></div>
+          <section class="panel">
+            <div class="formGrid two">
+              <label><span>Client Key</span><input id="tiktokClientKey" type="text" placeholder="Paste TikTok client key" /></label>
+              <label><span>Redirect URI</span><input id="tiktokRedirectUri" type="text" value="https://nhahn318-maker.github.io/autoupvid/tiktok/callback" /></label>
+              <label><span>Rendered Video</span><select id="tiktokVideoSelect"></select></label>
+              <label><span>Privacy</span><select id="tiktokPrivacy"><option value="SELF_ONLY">SELF_ONLY</option><option value="MUTUAL_FOLLOW_FRIENDS">MUTUAL_FOLLOW_FRIENDS</option><option value="PUBLIC_TO_EVERYONE">PUBLIC_TO_EVERYONE</option></select></label>
+            </div>
+            <label class="blockLabel"><span>Caption</span><textarea id="tiktokCaption" class="textInput small"></textarea></label>
+            <div class="formGrid two">
+              <label><span>Authorization Code</span><input id="tiktokAuthCode" type="text" placeholder="Paste callback code" /></label>
+              <label><span>Transfer Method</span><input id="tiktokTransfer" type="text" value="FILE_UPLOAD" readonly /></label>
+            </div>
+            <div class="actionsRow"><button id="tiktokConnectBtn" type="button">Connect TikTok</button><button id="openRenderedVideoBtn" type="button"><i data-lucide="folder-open"></i>Open MP4</button><button id="tiktokDemoBtn" class="primary" type="button">Run Upload Demo</button></div>
+            <pre id="tiktokDemoLog" class="logBox"></pre>
+          </section>
+        </section>
+
+        <section id="page-config" class="page">
+          <div class="pageTitle"><h2>Config</h2><p>Edit config.json</p></div>
+          <section class="panel">
+            <div class="panelHead"><h3>JSON Config</h3><button id="saveConfigBtn" class="primary" type="button">Save</button></div>
+            <textarea id="configEditor" class="configEditor" spellcheck="false"></textarea>
+          </section>
+        </section>
+
+        <section id="page-jobs" class="page">
+          <div class="pageTitle"><h2>Jobs</h2><p>Queue and worker log</p></div>
+          <section class="panel">
+            <div id="jobsPageList" class="jobList"></div>
+            <pre id="jobLog" class="logBox"></pre>
+          </section>
+        </section>
+
+        <section id="jobsPanel" class="activeJobs">
+          <div class="activeJobsHead">
+            <strong>Active Jobs</strong>
+            <button id="toggleJobsBtn" type="button">Collapse</button>
           </div>
-          <video id="videoPreview" class="videoPreview" controls preload="metadata"></video>
-          <p id="videoPreviewInfo" class="muted"></p>
-        </div>
-      </section>
+          <div id="activeJobsList" class="jobList"></div>
+          <p id="jobStatus" class="muted"></p>
+        </section>
+      </main>
+    </div>
 
-      <section class="bottomGrid">
-        <details class="panel configPanel">
-          <summary>
-            <span>Config</span>
-            <button id="saveConfigBtn" type="button">Save</button>
-          </summary>
-          <textarea id="configEditor" spellcheck="false"></textarea>
-        </details>
-      </section>
-    </main>
-
-    <script src="/static/app.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="/static/app.js?v=20260622-single-channel-ui"></script>
   </body>
 </html>

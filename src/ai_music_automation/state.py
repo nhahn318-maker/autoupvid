@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_STATE = {"processed_audio": [], "uploads": []}
+DEFAULT_STATE = {"processed_audio": [], "uploads": [], "collected_audio": []}
 
 
 class StateStore:
@@ -41,24 +41,59 @@ class StateStore:
             self.data["processed_audio"].append(resolved)
         self.save()
 
-    def needs_work(self, audio_path: Path, shorts_enabled: bool) -> bool:
+    def needs_work(
+        self,
+        audio_path: Path,
+        shorts_enabled: bool,
+        required_upload_types: set[str] | None = None,
+    ) -> bool:
         uploads = self.uploads_for(audio_path)
         if self.is_processed(audio_path) and not uploads:
             return False
-        if not self.has_upload(audio_path, "normal"):
-            return True
-        return shorts_enabled and not self.has_upload(audio_path, "short")
+        for upload_type in self._required_upload_types(shorts_enabled, required_upload_types):
+            if not self.has_upload(audio_path, upload_type):
+                return True
+        return False
 
-    def is_complete(self, audio_path: Path, shorts_enabled: bool) -> bool:
+    def is_complete(
+        self,
+        audio_path: Path,
+        shorts_enabled: bool,
+        required_upload_types: set[str] | None = None,
+    ) -> bool:
         if self.is_processed(audio_path) and not self.uploads_for(audio_path):
             return True
-        if not self.has_upload(audio_path, "normal"):
-            return False
-        return not shorts_enabled or self.has_upload(audio_path, "short")
+        return all(
+            self.has_upload(audio_path, upload_type)
+            for upload_type in self._required_upload_types(shorts_enabled, required_upload_types)
+        )
+
+    def _required_upload_types(
+        self,
+        shorts_enabled: bool,
+        required_upload_types: set[str] | None,
+    ) -> set[str]:
+        if required_upload_types is not None:
+            return required_upload_types
+        return {"normal", "short"} if shorts_enabled else {"normal"}
 
     def add_upload(self, item: dict[str, Any]) -> None:
         self.data["uploads"].append(item)
         self.save()
+
+    def is_collected(self, audio_path: Path) -> bool:
+        return str(audio_path.resolve()) in self.data["collected_audio"]
+
+    def mark_collected(self, audio_paths: list[Path]) -> None:
+        collected = self.data["collected_audio"]
+        changed = False
+        for audio_path in audio_paths:
+            resolved = str(audio_path.resolve())
+            if resolved not in collected:
+                collected.append(resolved)
+                changed = True
+        if changed:
+            self.save()
 
     def used_publish_times(self) -> set[str]:
         return {
@@ -74,6 +109,10 @@ class StateStore:
         self.data["processed_audio"] = [
             item for item in self.data["processed_audio"] if Path(item).exists()
         ]
+        before_collected = len(self.data["collected_audio"])
+        self.data["collected_audio"] = [
+            item for item in self.data["collected_audio"] if Path(item).exists()
+        ]
         self.data["uploads"] = [
             item
             for item in self.data["uploads"]
@@ -81,6 +120,8 @@ class StateStore:
         ]
         removed = (before_processed - len(self.data["processed_audio"])) + (
             before_uploads - len(self.data["uploads"])
+        ) + (
+            before_collected - len(self.data["collected_audio"])
         )
         if removed:
             self.save()

@@ -21,6 +21,37 @@ def render_video(
     duration = min(source_duration, max_duration_seconds) if max_duration_seconds else source_duration
     width, height = parse_resolution(render_config.get("resolution", "1920x1080"))
     fps = int(render_config.get("fps", 30))
+    preset = str(render_config.get("encode_preset", "medium"))
+    ambient_overlay = overlay_config(render_config.get("ambient_overlay"))
+    subscribe_overlay = overlay_config(render_config.get("subscribe_overlay"))
+
+    if len(track.image_paths) > 1:
+        return render_slideshow_video(
+            track=track,
+            output_path=output_path,
+            render_config=render_config,
+            width=width,
+            height=height,
+            fps=fps,
+            duration=duration,
+            preset=preset,
+            ambient_overlay=ambient_overlay,
+            subscribe_overlay=subscribe_overlay,
+        )
+
+    if ambient_overlay or subscribe_overlay:
+        return render_single_image_video(
+            track=track,
+            output_path=output_path,
+            render_config=render_config,
+            width=width,
+            height=height,
+            fps=fps,
+            duration=duration,
+            preset=preset,
+            ambient_overlay=ambient_overlay,
+            subscribe_overlay=subscribe_overlay,
+        )
 
     vf = build_video_filter(
         width=width,
@@ -38,17 +69,6 @@ def render_video(
         duration=duration,
         render_config=render_config,
     )
-
-    if len(track.image_paths) > 1:
-        return render_slideshow_video(
-            track=track,
-            output_path=output_path,
-            render_config=render_config,
-            width=width,
-            height=height,
-            fps=fps,
-            duration=duration,
-        )
 
     command = [
         "ffmpeg",
@@ -71,7 +91,7 @@ def render_video(
         "-c:v",
         "libx264",
         "-preset",
-        "medium",
+        preset,
         "-b:v",
         str(render_config.get("video_bitrate", "4500k")),
         "-pix_fmt",
@@ -95,6 +115,9 @@ def render_slideshow_video(
     height: int,
     fps: int,
     duration: float,
+    preset: str,
+    ambient_overlay: dict[str, Any] | None,
+    subscribe_overlay: dict[str, Any] | None,
 ) -> Path:
     images = list(track.image_paths)
     segment_duration = duration / len(images)
@@ -110,6 +133,12 @@ def render_slideshow_video(
         ])
     audio_input_index = len(images)
     inputs.extend(["-i", str(track.audio_path)])
+    overlay_inputs, overlay_indexes = build_overlay_inputs(
+        start_index=audio_input_index + 1,
+        ambient_overlay=ambient_overlay,
+        subscribe_overlay=subscribe_overlay,
+    )
+    inputs.extend(overlay_inputs)
 
     filters = []
     labels = []
@@ -127,16 +156,21 @@ def render_slideshow_video(
             f"setsar=1,trim=duration={segment_duration:.3f},setpts=PTS-STARTPTS[{label}]"
         )
         labels.append(f"[{label}]")
-    final_filter = decorate_video_filter(
-        "format=yuv420p",
-        track=track,
-        title=track.title,
-        width=width,
-        height=height,
-        duration=duration,
-        render_config=render_config,
+    filters.append(f"{''.join(labels)}concat=n={len(images)}:v=1:a=0[base]")
+    filters.extend(
+        build_overlay_filter_steps(
+            input_label="[base]",
+            output_label="[vout]",
+            width=width,
+            height=height,
+            duration=duration,
+            render_config=render_config,
+            track=track,
+            ambient_overlay=ambient_overlay,
+            subscribe_overlay=subscribe_overlay,
+            overlay_indexes=overlay_indexes,
+        )
     )
-    filters.append(f"{''.join(labels)}concat=n={len(images)}:v=1:a=0,{final_filter}[vout]")
 
     command = [
         "ffmpeg",
@@ -158,7 +192,89 @@ def render_slideshow_video(
         "-c:v",
         "libx264",
         "-preset",
-        "medium",
+        preset,
+        "-b:v",
+        str(render_config.get("video_bitrate", "4500k")),
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        str(render_config.get("audio_bitrate", "192k")),
+        "-shortest",
+        str(output_path),
+    ]
+    subprocess.run(command, check=True)
+    return output_path
+
+
+def render_single_image_video(
+    track: Track,
+    output_path: Path,
+    render_config: dict[str, Any],
+    width: int,
+    height: int,
+    fps: int,
+    duration: float,
+    preset: str,
+    ambient_overlay: dict[str, Any] | None,
+    subscribe_overlay: dict[str, Any] | None,
+) -> Path:
+    overlay_inputs, overlay_indexes = build_overlay_inputs(
+        start_index=2,
+        ambient_overlay=ambient_overlay,
+        subscribe_overlay=subscribe_overlay,
+    )
+    base_filter = build_video_filter(
+        width=width,
+        height=height,
+        fps=fps,
+        duration=duration,
+        zoom_effect=bool(render_config.get("zoom_effect", True)),
+    )
+    filters = [
+        f"[0:v]{base_filter}[base]",
+        *build_overlay_filter_steps(
+            input_label="[base]",
+            output_label="[vout]",
+            width=width,
+            height=height,
+            duration=duration,
+            render_config=render_config,
+            track=track,
+            ambient_overlay=ambient_overlay,
+            subscribe_overlay=subscribe_overlay,
+            overlay_indexes=overlay_indexes,
+        ),
+    ]
+
+    command = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-loop",
+        "1",
+        "-i",
+        str(track.image_path),
+        "-i",
+        str(track.audio_path),
+        *overlay_inputs,
+        "-filter_complex",
+        ";".join(filters),
+        "-map",
+        "[vout]",
+        "-map",
+        "1:a",
+        "-t",
+        f"{duration:.3f}",
+        "-r",
+        str(fps),
+        "-c:v",
+        "libx264",
+        "-preset",
+        preset,
         "-b:v",
         str(render_config.get("video_bitrate", "4500k")),
         "-pix_fmt",
@@ -177,6 +293,17 @@ def render_slideshow_video(
 def parse_resolution(value: str) -> tuple[int, int]:
     width, height = value.lower().split("x", maxsplit=1)
     return int(width), int(height)
+
+
+def overlay_config(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict) or not value.get("enabled"):
+        return None
+    path = Path(str(value.get("path", "")).strip())
+    if not path.exists():
+        return None
+    config = dict(value)
+    config["path"] = path
+    return config
 
 
 def build_video_filter(
@@ -245,6 +372,101 @@ def decorate_video_filter(
     return ",".join(filters)
 
 
+def build_overlay_inputs(
+    start_index: int,
+    ambient_overlay: dict[str, Any] | None,
+    subscribe_overlay: dict[str, Any] | None,
+) -> tuple[list[str], dict[str, int]]:
+    inputs: list[str] = []
+    indexes: dict[str, int] = {}
+    next_index = start_index
+    for key, config in (("ambient", ambient_overlay), ("subscribe", subscribe_overlay)):
+        if not config:
+            continue
+        path = Path(config["path"])
+        if path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}:
+            inputs.extend(["-loop", "1", "-i", str(path)])
+        else:
+            inputs.extend(["-stream_loop", "-1", "-i", str(path)])
+        indexes[key] = next_index
+        next_index += 1
+    return inputs, indexes
+
+
+def build_overlay_filter_steps(
+    input_label: str,
+    output_label: str,
+    width: int,
+    height: int,
+    duration: float,
+    render_config: dict[str, Any],
+    track: Track,
+    ambient_overlay: dict[str, Any] | None,
+    subscribe_overlay: dict[str, Any] | None,
+    overlay_indexes: dict[str, int],
+) -> list[str]:
+    steps: list[str] = []
+    current_label = input_label
+    current_name = "video"
+
+    if ambient_overlay and "ambient" in overlay_indexes:
+        ambient_input = f"[{overlay_indexes['ambient']}:v]"
+        next_label = "[with_ambient]"
+        blend_mode = str(ambient_overlay.get("blend_mode") or "alpha").lower()
+        if blend_mode == "screen":
+            # FFmpeg's screen blend can shift YUV footage toward magenta. Keep both
+            # inputs in planar RGB so grayscale mist does not alter the base hue.
+            steps.append(f"{current_label}format=gbrp[screen_base]")
+            steps.append(f"{ambient_input}scale={width}:{height},format=gbrp[ambient]")
+            steps.append(
+                f"[screen_base][ambient]blend=all_mode=screen:"
+                f"all_opacity={overlay_opacity(ambient_overlay):.3f}:shortest=1{next_label}"
+            )
+        else:
+            steps.append(
+                f"{ambient_input}scale={width}:{height},format=rgba,"
+                f"colorchannelmixer=aa={overlay_opacity(ambient_overlay):.3f}[ambient]"
+            )
+            steps.append(f"{current_label}[ambient]overlay=eof_action=repeat:shortest=1{next_label}")
+        current_label = next_label
+        current_name = "with_ambient"
+
+    decorated_label = f"[{current_name}_decorated]"
+    decorated_filter = decorate_video_filter(
+        "null",
+        track=track,
+        title=track.title,
+        width=width,
+        height=height,
+        duration=duration,
+        render_config=render_config,
+    )
+    steps.append(f"{current_label}{decorated_filter}{decorated_label}")
+    current_label = decorated_label
+
+    if subscribe_overlay and "subscribe" in overlay_indexes:
+        overlay_input = f"[{overlay_indexes['subscribe']}:v]"
+        scaled_width = max(1, int(width * float(subscribe_overlay.get("width_percent", 12)) / 100.0))
+        margin = max(0, int(width * float(subscribe_overlay.get("margin_percent", 3)) / 100.0))
+        x_expr, y_expr = subscribe_overlay_position(
+            str(subscribe_overlay.get("position") or "bottom-right").lower(),
+            margin,
+        )
+        enable_expr = subscribe_enable_expr(subscribe_overlay, duration)
+        steps.append(f"{overlay_input}scale={scaled_width}:-1,format=rgba[subscribe]")
+        overlay_step = (
+            f"{current_label}[subscribe]overlay=x={x_expr}:y={y_expr}:eof_action=repeat"
+        )
+        if enable_expr:
+            overlay_step += f":enable='{enable_expr}'"
+        overlay_step += output_label
+        steps.append(overlay_step)
+    else:
+        steps.append(f"{current_label}null{output_label}")
+
+    return steps
+
+
 def segment_transition_filter(duration: float, render_config: dict[str, Any]) -> str:
     if not bool(render_config.get("transition_effect", True)) or duration <= 2.0:
         return "format=yuv420p"
@@ -256,11 +478,47 @@ def segment_transition_filter(duration: float, render_config: dict[str, Any]) ->
     )
 
 
+def overlay_opacity(config: dict[str, Any]) -> float:
+    return max(0.0, min(1.0, float(config.get("opacity", 1.0))))
+
+
+def subscribe_overlay_position(position: str, margin: int) -> tuple[str, str]:
+    if position == "bottom-center":
+        return "(W-w)/2", f"H-h-{margin}"
+    if position == "top-right":
+        return f"W-w-{margin}", str(margin)
+    if position == "top-left":
+        return str(margin), str(margin)
+    if position == "top-center":
+        return "(W-w)/2", str(margin)
+    if position == "bottom-left":
+        return str(margin), f"H-h-{margin}"
+    return f"W-w-{margin}", f"H-h-{margin}"
+
+
+def subscribe_enable_expr(config: dict[str, Any], duration: float) -> str:
+    start_seconds = max(0.0, float(config.get("start_seconds", 0.0) or 0.0))
+    display_seconds = float(config.get("display_seconds", 0.0) or 0.0)
+    interval_seconds = float(config.get("interval_seconds", 0.0) or 0.0)
+    if start_seconds >= duration:
+        return "0"
+    if display_seconds > 0 and interval_seconds > 0:
+        return (
+            f"gte(t,{start_seconds:.3f})*"
+            f"lt(mod(t-{start_seconds:.3f},{interval_seconds:.3f}),{display_seconds:.3f})"
+        )
+    if display_seconds > 0:
+        return f"between(t,{start_seconds:.3f},{min(duration, start_seconds + display_seconds):.3f})"
+    if start_seconds > 0:
+        return f"gte(t,{start_seconds:.3f})"
+    return ""
+
+
 def escape_drawtext(value: str) -> str:
     return (
         value.replace("\\", "\\\\")
         .replace(":", "\\:")
-        .replace("'", "\\'")
+        .replace("'", "'\\''")
         .replace(",", "\\,")
         .replace("%", "\\%")
     )
@@ -338,7 +596,7 @@ def transcript_chunks(text: str, words_per_chunk: int, max_chars_per_chunk: int 
     cleaned = re.sub(r"\s+", " ", text).strip()
     if not cleaned:
         return []
-    sentences = re.split(r"(?<=[.!?。！？])\s+", cleaned)
+    sentences = re.split(r"(?<=[.!?ã€‚ï¼ï¼Ÿ])\s+", cleaned)
     chunks: list[str] = []
     for sentence in sentences:
         words = sentence.split()
