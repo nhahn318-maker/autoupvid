@@ -6,6 +6,7 @@ import socket
 import ssl
 from collections.abc import Callable
 from datetime import date, datetime, time, timezone
+import re
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -156,6 +157,92 @@ def count_videos_on_date(service, local_date: date, timezone_name: str) -> int:
         publishedBefore=end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
     ).execute()
     return int(response.get("pageInfo", {}).get("totalResults", 0))
+
+
+def _parse_iso8601_duration_seconds(value: str) -> int:
+    match = re.fullmatch(
+        r"PT(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?",
+        value or "",
+    )
+    if not match:
+        return 0
+    hours = int(match.group("hours") or 0)
+    minutes = int(match.group("minutes") or 0)
+    seconds = int(match.group("seconds") or 0)
+    return hours * 3600 + minutes * 60 + seconds
+
+
+def _scheduled_video_kind(item: dict) -> str:
+    title = str(item.get("snippet", {}).get("title") or "")
+    if "#shorts" in title.lower():
+        return "short"
+    duration_seconds = _parse_iso8601_duration_seconds(str(item.get("contentDetails", {}).get("duration") or ""))
+    if 0 < duration_seconds <= 70:
+        return "short"
+    return "normal"
+
+
+def list_scheduled_publish_times(
+    service,
+    *,
+    now: datetime | None = None,
+    max_results: int = 200,
+    scheduled_kind: str = "any",
+) -> set[str]:
+    current = now or datetime.now(timezone.utc)
+    scheduled: set[str] = set()
+
+    channels_response = service.channels().list(part="contentDetails", mine=True).execute()
+    items = channels_response.get("items") or []
+    if not items:
+        return scheduled
+    uploads_playlist_id = (
+        items[0].get("contentDetails", {})
+        .get("relatedPlaylists", {})
+        .get("uploads")
+    )
+    if not uploads_playlist_id:
+        return scheduled
+
+    video_ids: list[str] = []
+    page_token: str | None = None
+    remaining = max_results
+    while remaining > 0:
+        response = service.playlistItems().list(
+            part="contentDetails",
+            playlistId=uploads_playlist_id,
+            maxResults=min(50, remaining),
+            pageToken=page_token,
+        ).execute()
+        for item in response.get("items", []):
+            video_id = item.get("contentDetails", {}).get("videoId")
+            if video_id:
+                video_ids.append(video_id)
+        remaining -= len(response.get("items", []))
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            break
+
+    for start in range(0, len(video_ids), 50):
+        chunk = video_ids[start : start + 50]
+        if not chunk:
+            continue
+        response = service.videos().list(part="status,snippet,contentDetails", id=",".join(chunk)).execute()
+        for item in response.get("items", []):
+            publish_at = item.get("status", {}).get("publishAt")
+            if not publish_at:
+                continue
+            item_kind = _scheduled_video_kind(item)
+            if scheduled_kind != "any" and item_kind != scheduled_kind:
+                continue
+            try:
+                publish_dt = datetime.fromisoformat(publish_at.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if publish_dt > current:
+                scheduled.add(publish_dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"))
+
+    return scheduled
 
 
 def upload_video(

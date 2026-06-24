@@ -6,6 +6,13 @@ data/input/audio/*
 data/input/images/*
 data/input/thumbnails/*
 data/input/story/*
+data/input/buddhist/*
+data/input/effects/*
+data/input/football/*
+data/input/lyrics/*
+data/input/podcast/*
+data/input/silent_horizone/*
+data/input/short_images/*
 data/output/*
 data/state/*
 logs/*
@@ -13,6 +20,14 @@ logs/*
 !data/input/audio/.gitkeep
 !data/input/images/.gitkeep
 !data/input/thumbnails/.gitkeep
+!data/input/story/.gitkeep
+!data/input/buddhist/.gitkeep
+!data/input/effects/.gitkeep
+!data/input/football/.gitkeep
+!data/input/lyrics/.gitkeep
+!data/input/podcast/.gitkeep
+!data/input/silent_horizone/.gitkeep
+!data/input/short_images/.gitkeep
 !data/output/.gitkeep
 !data/state/.gitkeep
 !logs/.gitkeep
@@ -20,3 +35,20 @@ logs/*
 client_secret*.json
 token*.json
 config.json
+
+# Local temp and recovery files
+*.mp3
+*.png
+figma-dom.html
+python-*.exe
+*.log
+recovery/
+_web_recovered.bytecode
+src/ai_music_automation/_web_recovered.bytecode
+
+# Local directories
+.ngrok/
+brain/
+tiktok/
+tools/
+data/tmp/

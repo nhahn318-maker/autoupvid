@@ -167,3 +167,12 @@ Nên đặt chạy 1 lần/ngày, ví dụ 08:00 sáng. Hệ thống sẽ tự l
 - Pipeline này chưa tự tạo nhạc AI. Nó xử lý nhạc bạn đã có sẵn.
 - YouTube có giới hạn quota API và chính sách chống nội dung spam/trùng lặp.
 - Nên dùng title, thumbnail, mô tả và hình ảnh khác nhau để kênh nhìn tự nhiên hơn.
+
+
+
+## Run Project
+cd D:\automation
+.\run_gui.ps1
+## Run Ngrok
+cd D:\automation
+powershell -ExecutionPolicy Bypass -File .\run_ngrok_tunnel.ps1

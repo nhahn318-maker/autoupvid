@@ -2,6 +2,7 @@ const state = {
   activePage: location.hash.replace("#", "") || "dashboard",
   currentJob: null,
   latestData: null,
+  lastStoryVoiceDefault: "",
   selectedCollections: new Set(),
   lyricsRows: [],
   toastTimer: null,
@@ -176,7 +177,7 @@ function renderFullAuto(fullauto) {
     longStartBtn.disabled = !fullauto.enabled || !fullAutoSupported || longPromptCount < 1 || longImageCount < longRequiredImageCount;
     $("fullAutoLongStats").textContent =
       `${fullauto.long_target_minutes || 60}-minute mode: ${longPromptCount} prompt(s), ${longImageCount}/${longRequiredImageCount} horizontal image(s), ` +
-      `${fullauto.long_sticker_count || 0} sticker(s). ` +
+      `${fullauto.long_effect_count || 0} effect(s), ${fullauto.long_wave_count || 0} wave asset(s), ${fullauto.long_sticker_count || 0} sticker(s). ` +
       `One click creates one ${fullauto.long_target_minutes || 60}-minute video and uploads it as a normal video.`;
   }
 
@@ -194,7 +195,7 @@ function renderFullAuto(fullauto) {
       const missingCount = tmRequiredImageCount - tmImageCount;
       twentyMinStats.textContent =
         `Missing ${missingCount} horizontal image(s) for the 20-minute mode. ` +
-        `Add images to ${fullauto.paths?.twenty_min_images || "20-Min Images"}; images from other folders will not be used.`;
+        `Add images to 20-Min Images; both Vietnamese and English 20-minute videos use this shared image pool.`;
     } else if (missingPrompts) {
       twentyMinStats.textContent =
         `Missing 20-minute prompts. Add prompt files to ${fullauto.paths?.twenty_min_prompts || "20-Min Prompts"}.`;
@@ -202,6 +203,41 @@ function renderFullAuto(fullauto) {
       twentyMinStats.textContent =
         `${fullauto.twenty_min_target_minutes || 25}-minute mode: ${tmPromptCount} prompt(s), ${tmImageCount}/${tmRequiredImageCount} horizontal image(s). ` +
         `One click triggers topic-to-upload pipeline.`;
+    }
+  }
+
+  const autoMergeStats = $("fullAutoAutoMergeStats");
+  if (autoMergeStats) {
+    const am = fullauto.auto_merge;
+    if (am && am.enabled) {
+      autoMergeStats.style.display = "";
+      const s1Ready = am.stage1_candidates_count >= am.stage1_required_count;
+      const s2Ready = am.stage2_candidates_count >= am.stage2_required_count;
+      
+      let statusHtml = `<strong><i data-lucide="git-merge" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"></i>Trạng thái Tự Động Gộp (Auto-Merge Status):</strong><br/>`;
+      statusHtml += `• Gộp Video 1 tiếng: Đang có <strong>${am.stage1_candidates_count}/${am.stage1_required_count}</strong> video 20 phút trong thư mục Output. `;
+      if (s1Ready) {
+        statusHtml += `<span style="color:#2ec4b6; font-weight:bold;">[ĐỦ ĐIỀU KIỆN GHÉP VIDEO 1 TIẾNG]</span>`;
+      } else {
+        statusHtml += `<span style="color:#ff9f1c;">[Đang chờ thêm ${am.stage1_required_count - am.stage1_candidates_count} video nữa]</span>`;
+      }
+      
+      statusHtml += `<br/>• Gộp Video 8 tiếng: Đang có <strong>${am.stage2_candidates_count}/${am.stage2_required_count}</strong> video 1 tiếng. `;
+      if (s2Ready) {
+        statusHtml += `<span style="color:#2ec4b6; font-weight:bold;">[ĐỦ ĐIỀU KIỆN GHÉP VIDEO 8 TIẾNG]</span>`;
+      } else {
+        statusHtml += `<span style="color:#ff9f1c;">[Đang chờ thêm ${am.stage2_required_count - am.stage2_candidates_count} video nữa]</span>`;
+      }
+      
+      autoMergeStats.innerHTML = `<div>${statusHtml}</div>`;
+      if (window.lucide) {
+        window.lucide.createIcons({
+          attrs: { class: 'lucide-icon' },
+          nameAttr: 'data-lucide'
+        });
+      }
+    } else {
+      autoMergeStats.style.display = "none";
     }
   }
 
@@ -539,16 +575,18 @@ function actionLabel(action = "") {
 }
 
 function renderVoices(voices) {
-  renderVoiceSelect($("ttsVoice"), voices, "vi-VN-HoaiMyNeural");
+  const storyFallback = state.latestData?.active_account === "account4" ? "en-US-BrianNeural" : "vi-VN-HoaiMyNeural";
+  renderVoiceSelect($("ttsVoice"), voices, storyFallback, state.lastStoryVoiceDefault);
+  state.lastStoryVoiceDefault = storyFallback;
   renderVoiceSelect($("footballVoice"), voices, "en-US-BrianNeural");
   renderVoiceSelect($("conversationVoice1"), voices, "en-US-JennyNeural");
   renderVoiceSelect($("conversationVoice2"), voices, "en-US-GuyNeural");
   renderVoiceSelect($("conversationVoice3"), voices, "en-US-AvaNeural");
 }
 
-function renderVoiceSelect(select, voices, fallback) {
+function renderVoiceSelect(select, voices, fallback, previousDefault = "") {
   if (!select) return;
-  const current = select.value || fallback;
+  const current = !select.value || select.value === previousDefault ? fallback : select.value;
   select.innerHTML = voices.map((voice) => `<option value="${escapeHtml(voice.id)}" ${voice.id === current ? "selected" : ""}>${escapeHtml(voice.label)}</option>`).join("");
 }
 

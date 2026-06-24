@@ -15,7 +15,7 @@ from .metadata import build_metadata
 from .render import render_video
 from .scheduler import next_publish_times, parse_time, to_rfc3339_utc
 from .state import StateStore
-from .youtube import count_videos_on_date, create_token, get_youtube_service, upload_video
+from .youtube import count_videos_on_date, create_token, get_youtube_service, list_scheduled_publish_times, upload_video
 
 UploadStatusCallback = Callable[[str, int, str], None]
 
@@ -183,6 +183,7 @@ def upload_tracks(
                 blocked_dates=youtube_blocked_dates,
                 service=service,
                 youtube_date_counts=youtube_date_counts,
+                slot_kind="normal",
             )
         publish_at = to_rfc3339_utc(publish_time) if publish_time else None
         privacy = config.get("channel", "privacy_status", default="private")
@@ -247,6 +248,7 @@ def upload_tracks(
                     blocked_dates=youtube_blocked_dates,
                     service=service,
                     youtube_date_counts=youtube_date_counts,
+                    slot_kind="short",
                 )
                 short_publish_at = to_rfc3339_utc(short_time)
 
@@ -424,10 +426,30 @@ def reserve_next_publish_time(
     blocked_dates: set[str] | None = None,
     service=None,
     youtube_date_counts: dict[str, int] | None = None,
+    slot_kind: str = "normal",
 ):
+    blocked_times = blocked_times or set()
     blocked_dates = blocked_dates or set()
     youtube_date_counts = youtube_date_counts if youtube_date_counts is not None else {}
     timezone_name = config.get("schedule", "timezone")
+    if slot_kind == "short":
+        configured_times = config.get("shorts", "publish_times", default=None) or config.get("schedule", "publish_times")
+    else:
+        configured_times = config.get("schedule", "publish_times")
+
+    if service is not None:
+        try:
+            youtube_scheduled = list_scheduled_publish_times(service, scheduled_kind=slot_kind)
+            blocked_times.update(youtube_scheduled)
+            for value in youtube_scheduled:
+                try:
+                    scheduled_dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                except ValueError:
+                    continue
+                day_key = scheduled_dt.astimezone(ZoneInfo(timezone_name)).date().isoformat()
+                youtube_date_counts[day_key] = youtube_date_counts.get(day_key, 0) + 1
+        except Exception as exc:
+            print(f"Skip YouTube scheduled-slot check: {exc}")
 
     start_date_str = config.get("schedule", "start_date", default=None)
     if start_date_str:
@@ -449,7 +471,7 @@ def reserve_next_publish_time(
     while True:
         publish_time = next_publish_times(
             count=1,
-            configured_times=config.get("schedule", "publish_times"),
+            configured_times=configured_times,
             timezone_name=timezone_name,
             blocked_times=blocked_times,
             blocked_dates=blocked_dates,

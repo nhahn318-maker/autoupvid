@@ -1,14 +1,19 @@
 param(
-    [ValidateSet("init", "render", "upload", "daily", "login-account")]
+    [ValidateSet("init", "render", "upload", "daily", "login-account", "auto-images")]
     [string]$Command = "daily",
     [int]$Limit = 0,
     [switch]$DryRun,
+    [string]$TokenFile = "",
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$ExtraArgs
 )
 
 $ErrorActionPreference = "Stop"
 $env:PYTHONUTF8 = "1"
+$ffmpegBin = Join-Path $PSScriptRoot "tools\ffmpeg\bin"
+if (Test-Path -LiteralPath $ffmpegBin) {
+    $env:PATH = "$ffmpegBin;$env:PATH"
+}
 
 $requirements = "requirements.txt"
 $stamp = ".venv\.deps_installed"
@@ -31,6 +36,9 @@ if ($Limit -gt 0) {
 }
 if ($DryRun) {
     $arguments += "--dry-run"
+}
+if ($TokenFile) {
+    $arguments += @("--token-file", $TokenFile)
 }
 if ($ExtraArgs) {
     $arguments += $ExtraArgs
