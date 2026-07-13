@@ -1,0 +1,21 @@
+{
+  "name": "Phat Phap Auto",
+  "short_name": "Phat Phap Auto",
+  "start_url": "/static/mobile.html",
+  "scope": "/static/",
+  "display": "standalone",
+  "background_color": "#edf3f6",
+  "theme_color": "#10273a",
+  "icons": [
+    {
+      "src": "/static/mobile-icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/mobile-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

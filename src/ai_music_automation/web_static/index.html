@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Auto Vid</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260622-single-channel-ui" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260712-wide-layout-v4" />
   </head>
   <body>
     <div id="toast" class="toast" hidden></div>
@@ -32,6 +32,7 @@
         <a class="navItem" href="#lyrics" data-page="lyrics"><i data-lucide="captions"></i><span>Lyrics</span></a>
         <a class="navItem" href="#collections" data-page="collections"><i data-lucide="folder"></i><span>Collections</span></a>
         <a class="navItem" href="#story" data-page="story"><i data-lucide="wand-sparkles"></i><span>Story Tools</span></a>
+        <a class="navItem" href="#sleep-story" data-page="sleep-story"><i data-lucide="moon"></i><span>Sleep Story</span></a>
         <a class="navItem" href="#fullauto" data-page="fullauto"><i data-lucide="bot"></i><span>Full Auto</span></a>
         <a class="navItem" href="#postcard" data-page="postcard"><i data-lucide="messages-square"></i><span>Postcard</span></a>
         <a class="navItem" href="#tiktok" data-page="tiktok"><i data-lucide="video"></i><span>TikTok</span></a>
@@ -323,6 +324,87 @@
           </section>
         </section>
 
+        <section id="page-sleep-story" class="page">
+          <div class="pageTitle">
+            <h2>Sleepu Stories</h2>
+            <p>Create complete bedtime-story videos for the Sleepu Stories channel.</p>
+          </div>
+          <div class="sleepHero">
+            <div class="sleepHeroMain">
+              <i data-lucide="moon-star"></i>
+              <div>
+                <strong>One workflow: story, images, voice, metadata, render</strong>
+                <p id="sleepStoryPolicy">Checking Sleepu Stories setup.</p>
+              </div>
+            </div>
+            <div class="sleepStats">
+              <span><strong id="sleepPromptCount">0</strong> prompts</span>
+              <span><strong id="sleepReferenceCount">0</strong> references</span>
+              <span><strong id="sleepGeneratedCount">0</strong> images</span>
+            </div>
+          </div>
+
+          <section class="sleepWorkbench">
+            <div class="panel sleepComposer">
+              <div class="panelHead">
+                <h3><i data-lucide="wand-sparkles"></i> Create Video</h3>
+                <span class="status ready">Sleepu Stories</span>
+              </div>
+              <div class="sleepFieldStack">
+                <label><span>Story title or idea</span><input id="sleepStoryTitle" type="text" placeholder="The Moon Bell Promise" /></label>
+                <textarea id="sleepStoryPrompt" class="textInput sleepPromptBox" placeholder="Optional: paste a story idea, lesson, character, or art direction. Leave empty to use the latest prompt file."></textarea>
+              </div>
+              <div class="formGrid three sleepSettings">
+                <label><span>Voice</span><select id="sleepStoryVoice"></select></label>
+                <label><span>Target length</span><input id="sleepStoryMinutes" type="number" min="1" max="30" value="10" /></label>
+                <label><span>Scene images</span><input id="sleepStoryImageCount" type="number" min="1" max="32" value="8" /></label>
+              </div>
+              <label class="checkLine sleepCheck"><input id="sleepStoryWaitImages" type="checkbox" />Wait for local image generation to finish before render</label>
+              <div class="sleepPrimaryActions">
+                <button id="sleepStoryAutoBtn" class="primary sleepBigAction" type="button"><i data-lucide="sparkles"></i><span>Auto Agent Video</span></button>
+                <button id="sleepStoryCreateBtn" type="button"><i data-lucide="clapperboard"></i><span>Quick Test Render</span></button>
+              </div>
+              <p id="sleepStoryStatus" class="formStatus"></p>
+            </div>
+
+            <aside class="panel sleepSidePanel">
+              <h3><i data-lucide="sliders-horizontal"></i> Files & Review</h3>
+              <div class="sleepFolderGrid">
+                <button data-folder="sleep-prompts" type="button"><i data-lucide="file-text"></i><span>Prompts</span></button>
+                <button data-folder="sleep-references" type="button"><i data-lucide="image"></i><span>References</span></button>
+                <button data-folder="sleep-generated" type="button"><i data-lucide="image-plus"></i><span>Images</span></button>
+                <button data-folder="sleep-drafts" type="button"><i data-lucide="folder"></i><span>Drafts</span></button>
+                <button data-folder="sleep-output" type="button"><i data-lucide="video"></i><span>Output</span></button>
+              </div>
+              <div class="sleepSteps">
+                <div><i data-lucide="pen-line"></i><span>Plan and write story</span></div>
+                <div><i data-lucide="image"></i><span>Create scene images</span></div>
+                <div><i data-lucide="mic-2"></i><span>Generate Kokoro voice</span></div>
+                <div><i data-lucide="badge-check"></i><span>Review QA and metadata</span></div>
+                <div><i data-lucide="film"></i><span>Render MP4 with wave</span></div>
+              </div>
+            </aside>
+          </section>
+
+          <section class="sleepReviewGrid">
+            <div class="panel videoReviewPanel">
+              <div class="panelHead">
+                <h3><i data-lucide="circle-play"></i> Latest Video</h3>
+                <span id="sleepStoryReviewInfo" class="muted">No sleep-story video generated yet.</span>
+              </div>
+              <video id="sleepStoryReviewPlayer" class="videoReview" controls preload="metadata"></video>
+            </div>
+            <div class="panel sleepDraftPanel">
+              <div class="panelHead">
+                <h3><i data-lucide="file-text"></i> Draft & Metadata</h3>
+                <span class="muted">Script, scenes, title, description</span>
+              </div>
+              <textarea id="sleepStoryMarkdownReview" class="textInput fullAutoMarkdown" readonly placeholder="Draft markdown and scene prompts appear here"></textarea>
+              <div id="sleepStoryDrafts" class="fullAutoDrafts"></div>
+            </div>
+          </section>
+        </section>
+
         <section id="page-fullauto" class="page">
           <div class="pageTitle">
             <h2>Full Auto Story</h2>
@@ -358,6 +440,62 @@
           <div class="policyBox slim" id="fullAutoLongStats">Checking long-form prompts and horizontal images.</div>
           <div class="policyBox slim" id="fullAutoTwentyMinStats">Checking 20-minute prompts and horizontal images.</div>
           <div class="policyBox slim" id="fullAutoAutoMergeStats" style="display: none;">Checking auto-merge status...</div>
+          <section class="panel fullAutoBulkPanel">
+            <div>
+              <h3><i data-lucide="layers-3"></i> 3-Channel Run</h3>
+              <p class="muted">Run Nhân Tâm, Ánh Đạo Từ Bi, and Lắng Nghe in one queued job.</p>
+            </div>
+            <div class="bulkControls">
+              <label><span>Shorts</span><input id="fullAutoBulkShortCount" type="number" min="0" max="10" value="1" /></label>
+              <label><span>20-Min</span><input id="fullAutoBulkTwentyMinCount" type="number" min="0" max="5" value="0" /></label>
+              <label><span>Long</span><input id="fullAutoBulkLongCount" type="number" min="0" max="3" value="0" /></label>
+            </div>
+            <button id="fullAutoBulkBtn" class="primary" type="button"><i data-lucide="play"></i>Run 3 Channels</button>
+          </section>
+          <section class="panel youtubeResearchPanel">
+            <div>
+              <h3><i data-lucide="search"></i> Channel Research</h3>
+              <p class="muted">Paste a public YouTube channel link to learn ideas, titles, hooks, thumbnails, and upload timing.</p>
+            </div>
+            <div class="researchGrid">
+              <label><span>Channel link</span><input id="youtubeResearchUrl" type="url" placeholder="https://www.youtube.com/@channel" /></label>
+              <label>
+                <span>Tab</span>
+                <select id="youtubeResearchTab">
+                  <option value="shorts">Shorts</option>
+                  <option value="videos">Videos</option>
+                  <option value="all">Current URL</option>
+                </select>
+              </label>
+              <label><span>Count</span><input id="youtubeResearchLimit" type="number" min="1" max="80" value="24" /></label>
+              <label><span>Transcript hooks</span><input id="youtubeResearchTranscriptLimit" type="number" min="0" max="30" value="8" /></label>
+            </div>
+            <div class="actionsRow">
+              <button id="youtubeResearchBtn" class="primary" type="button"><i data-lucide="radar"></i>Analyze Channel</button>
+              <button id="youtubeAnalyticsSyncBtn" type="button"><i data-lucide="bar-chart-3"></i>Sync Analytics</button>
+              <button id="viewOptimizerBtn" type="button"><i data-lucide="line-chart"></i>Optimize Views</button>
+              <button data-folder="youtube-research" type="button"><i data-lucide="folder-open"></i>Research Folder</button>
+            </div>
+            <p id="youtubeResearchStatus" class="formStatus"></p>
+          </section>
+          <div class="actionsRow">
+            <button id="fullAutoMerge1HourBtn" type="button"><i data-lucide="git-merge"></i>Gộp 1 Giờ</button>
+            <button id="fullAutoMergeUpload1HourBtn" class="primary" type="button"><i data-lucide="upload"></i>Gộp + Upload 1 Giờ</button>
+          </div>
+          <section class="panel">
+            <div class="panelHead">
+              <div>
+                <h3><i data-lucide="combine"></i> Gộp Video Long Đã Tạo</h3>
+                <span class="muted">Chọn từ 2 video long. Gộp xong xóa video nguồn; upload thành công xóa luôn file gộp.</span>
+              </div>
+              <span id="fullAutoLongMergeCount" class="muted"></span>
+            </div>
+            <div id="fullAutoLongMergeList" class="sourceList"></div>
+            <div class="actionsRow">
+              <button id="fullAutoLongMergeBtn" type="button" disabled><i data-lucide="combine"></i>Gộp Đã Chọn</button>
+              <button id="fullAutoLongMergeUploadBtn" class="primary" type="button" disabled><i data-lucide="upload"></i>Gộp + Upload Đã Chọn</button>
+            </div>
+          </section>
           <section class="panel">
             <div class="panelHead">
               <h3><i data-lucide="folder-open"></i> Folders</h3>
@@ -376,6 +514,8 @@
               <button data-folder="fullauto-long-effects" type="button"><i data-lucide="sparkles"></i>Effects</button>
               <button data-folder="fullauto-long-wave" type="button"><i data-lucide="waves"></i>Wave</button>
               <button data-folder="fullauto-long-stickers" type="button"><i data-lucide="badge"></i>Stickers</button>
+              <button data-folder="thumbnail-refs-normal" type="button"><i data-lucide="image"></i>Normal Thumb Refs</button>
+              <button data-folder="thumbnail-refs-short" type="button"><i data-lucide="image"></i>Short Thumb Refs</button>
               <button data-folder="output" type="button"><i data-lucide="video"></i>Output Folder</button>
             </div>
           </section>
@@ -460,6 +600,7 @@
         <section id="page-jobs" class="page">
           <div class="pageTitle"><h2>Jobs</h2><p>Queue and worker log</p></div>
           <section class="panel">
+            <div id="jobsPageOverview" class="jobsOverview jobsPageOverview"></div>
             <div id="jobsPageList" class="jobList"></div>
             <pre id="jobLog" class="logBox"></pre>
           </section>
@@ -467,9 +608,13 @@
 
         <section id="jobsPanel" class="activeJobs">
           <div class="activeJobsHead">
-            <strong>Active Jobs</strong>
+            <div>
+              <strong>Active Jobs</strong>
+              <span id="jobsUpdatedAt" class="jobsUpdatedAt"></span>
+            </div>
             <button id="toggleJobsBtn" type="button">Collapse</button>
           </div>
+          <div id="jobsOverview" class="jobsOverview"></div>
           <div id="activeJobsList" class="jobList"></div>
           <p id="jobStatus" class="muted"></p>
         </section>
@@ -477,6 +622,6 @@
     </div>
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script src="/static/app.js?v=20260622-single-channel-ui"></script>
+    <script src="/static/app.js?v=20260712-resume-sleep-v5"></script>
   </body>
 </html>

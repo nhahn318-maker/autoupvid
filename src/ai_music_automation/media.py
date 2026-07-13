@@ -63,10 +63,15 @@ def discover_tracks(audio_dir: Path, image_dir: Path) -> list[Track]:
     return tracks
 
 
-def track_with_images_from_dir(track: Track, image_dir: Path, count: int = 40) -> Track:
+def track_with_images_from_dir(
+    track: Track,
+    image_dir: Path,
+    count: int = 40,
+    allow_latest_fallback: bool = True,
+) -> Track:
     image_files = list_files(image_dir, IMAGE_EXTENSIONS)
     matching_images = find_matching_images(track.audio_path, image_files)
-    if not matching_images and image_files:
+    if not matching_images and image_files and allow_latest_fallback:
         newest_images = sorted(image_files, key=lambda path: path.stat().st_mtime, reverse=True)
         matching_images = newest_images[:count]
     if not matching_images:

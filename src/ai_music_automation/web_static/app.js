@@ -1,9 +1,10 @@
-const state = {
+﻿const state = {
   activePage: location.hash.replace("#", "") || "dashboard",
   currentJob: null,
   latestData: null,
   lastStoryVoiceDefault: "",
   selectedCollections: new Set(),
+  selectedLongMergeVideos: new Set(),
   lyricsRows: [],
   toastTimer: null,
   refreshing: false,
@@ -106,6 +107,7 @@ async function refresh(options = {}) {
     renderCollection(data.collection || {});
     renderStorageCleanup(data.storage || {});
     renderFullAuto(data.fullauto || {});
+    renderStoryBeforeSleep(data.story_before_sleep || {});
     renderJobs(data.jobs || []);
     renderVoices(data.tts_voices || []);
     renderStoryAudio(data.files?.audio || []);
@@ -137,6 +139,9 @@ function renderStatus(data) {
 function renderFullAuto(fullauto) {
   const startBtn = $("fullAutoStartBtn");
   const longStartBtn = $("fullAutoLongStartBtn");
+  const merge1HourBtn = $("fullAutoMerge1HourBtn");
+  const mergeUpload1HourBtn = $("fullAutoMergeUpload1HourBtn");
+  const bulkBtn = $("fullAutoBulkBtn");
   if (!startBtn) return;
   const modelSelect = $("fullAutoModelSelect");
   const promptCount = fullauto.prompt_count || 0;
@@ -149,6 +154,7 @@ function renderFullAuto(fullauto) {
     fullauto.upload_accounts?.[activeAccount]?.label ||
     activeAccount ||
     "No channel selected";
+  const englishFullAuto = activeAccount === "account4";
   const selectedValue = `${fullauto.provider || "gemini"}|${fullauto.model || "gemini-2.5-flash"}`;
   const options = [
     ["gemini|gemini-2.5-flash", "Gemini 2.5 Flash"],
@@ -160,9 +166,11 @@ function renderFullAuto(fullauto) {
   modelSelect.innerHTML = options
     .map(([value, label]) => `<option value="${escapeHtml(value)}" ${value === selectedValue ? "selected" : ""}>${escapeHtml(label)}</option>`)
     .join("");
-  $("fullAutoStats").textContent = `${promptCount} prompt(s), ${imageCount} image(s) in the pool.`;
+  $("fullAutoStats").textContent =
+    `${promptCount} prompt(s), ${imageCount} image(s) in the pool. ` +
+    `Short Images: ${fullauto.paths?.images || "not configured"}.`;
   $("fullAutoPolicy").textContent = fullauto.enabled
-    ? `Uses ${fullauto.provider === "ollama" ? `local Ollama ${fullauto.model}` : `Gemini ${fullauto.model}`}, Vietnamese voices, pooled images, then schedules Story Shorts only.`
+    ? `Uses ${fullauto.provider === "ollama" ? `local Ollama ${fullauto.model}` : `Gemini ${fullauto.model}`}, ${englishFullAuto ? "English" : "Vietnamese"} voices, pooled images, then schedules Story Shorts only.`
     : "Full Auto is unavailable.";
   $("fullAutoSub").textContent = "Creates Buddhist content and uploads it to the globally selected channel";
   $("fullAutoChannelName").textContent = selectedChannelLabel;
@@ -170,6 +178,10 @@ function renderFullAuto(fullauto) {
     ? "This section follows the global channel selector in the header."
     : "This channel does not support Full Auto. Pick a supported story channel in the global selector.";
   startBtn.disabled = !fullauto.enabled || !fullAutoSupported || promptCount < 1 || imageCount < 5;
+  if (bulkBtn) {
+    bulkBtn.disabled = !fullauto.enabled || promptCount < 1;
+  }
+
   if (longStartBtn) {
     const longPromptCount = fullauto.long_prompt_count || 0;
     const longImageCount = fullauto.long_image_count || 0;
@@ -212,34 +224,66 @@ function renderFullAuto(fullauto) {
     if (am && am.enabled) {
       autoMergeStats.style.display = "";
       const s1Ready = am.stage1_candidates_count >= am.stage1_required_count;
-      const s2Ready = am.stage2_candidates_count >= am.stage2_required_count;
-      
-      let statusHtml = `<strong><i data-lucide="git-merge" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"></i>Trạng thái Tự Động Gộp (Auto-Merge Status):</strong><br/>`;
-      statusHtml += `• Gộp Video 1 tiếng: Đang có <strong>${am.stage1_candidates_count}/${am.stage1_required_count}</strong> video 20 phút trong thư mục Output. `;
-      if (s1Ready) {
-        statusHtml += `<span style="color:#2ec4b6; font-weight:bold;">[ĐỦ ĐIỀU KIỆN GHÉP VIDEO 1 TIẾNG]</span>`;
-      } else {
-        statusHtml += `<span style="color:#ff9f1c;">[Đang chờ thêm ${am.stage1_required_count - am.stage1_candidates_count} video nữa]</span>`;
+      let statusHtml = `<strong><i data-lucide="git-merge" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"></i>Trạng thái gộp 1 giờ:</strong><br/>`;
+      statusHtml += `• Video 20 phút cùng cụm chủ đề sẵn sàng để gộp: <strong>${am.stage1_candidates_count}/${am.stage1_required_count}</strong>`;
+      if (am.stage1_cluster) {
+        statusHtml += ` - cụm <strong>${escapeHtml(am.stage1_cluster)}</strong>`;
       }
-      
-      statusHtml += `<br/>• Gộp Video 8 tiếng: Đang có <strong>${am.stage2_candidates_count}/${am.stage2_required_count}</strong> video 1 tiếng. `;
-      if (s2Ready) {
-        statusHtml += `<span style="color:#2ec4b6; font-weight:bold;">[ĐỦ ĐIỀU KIỆN GHÉP VIDEO 8 TIẾNG]</span>`;
-      } else {
-        statusHtml += `<span style="color:#ff9f1c;">[Đang chờ thêm ${am.stage2_required_count - am.stage2_candidates_count} video nữa]</span>`;
+      if (am.stage1_total_available) {
+        statusHtml += ` (tổng video 20 phút chưa dùng: ${am.stage1_total_available})`;
       }
-      
+      statusHtml += `. `;
+      statusHtml += s1Ready
+        ? `<span style="color:#2ec4b6; font-weight:bold;">[ĐỦ ĐIỀU KIỆN GỘP]</span>`
+        : `<span style="color:#ff9f1c;">[Đang chờ thêm ${am.stage1_required_count - am.stage1_candidates_count} video nữa]</span>`;
+      if (am.preferred_cluster && (am.stage1_remaining_count || 0) > 0) {
+        statusHtml += `<br/>• Hệ thống đang ưu tiên tạo tiếp cụm <strong>${escapeHtml(am.preferred_cluster)}</strong> cho đến khi đủ 5 video để gộp 1 giờ.`;
+      }
+      statusHtml += `<br/>• Bản gộp 1 giờ chưa upload: <strong>${am.stage2_candidates_count || 0}</strong>.`;
+      if (am.latest_stage1_output) {
+        statusHtml += `<br/>• Bản mới nhất: <strong>${escapeHtml(am.latest_stage1_output)}</strong>`;
+        if (am.latest_stage1_publish_at) {
+          statusHtml += ` - ${escapeHtml(formatSlot(am.latest_stage1_publish_at))}`;
+        }
+        if (am.latest_stage1_youtube_url) {
+          statusHtml += ` - <a href="${escapeHtml(am.latest_stage1_youtube_url)}" target="_blank" rel="noopener">YouTube</a>`;
+        }
+      }
+      const clusters = am.twenty_min_clusters || [];
+      if (clusters.length) {
+        statusHtml += `<div class="clusterSummary"><strong>Cụm video 20 phút:</strong>`;
+        statusHtml += clusters
+          .map((cluster) => {
+            const latest = (cluster.latest || [])
+              .map((item) => `<span>${escapeHtml(item.title || item.video_name || "")}</span>`)
+              .join("");
+            return `<section class="clusterRow">
+              <div><strong>${escapeHtml(cluster.cluster)}</strong><span>${cluster.available}/${cluster.total} chưa dùng, ${cluster.used || 0} đã gộp</span></div>
+              <div class="clusterLatest">${latest}</div>
+            </section>`;
+          })
+          .join("");
+        statusHtml += `</div>`;
+      }
       autoMergeStats.innerHTML = `<div>${statusHtml}</div>`;
       if (window.lucide) {
-        window.lucide.createIcons({
-          attrs: { class: 'lucide-icon' },
-          nameAttr: 'data-lucide'
-        });
+        window.lucide.createIcons({ attrs: { class: "lucide-icon" }, nameAttr: "data-lucide" });
       }
     } else {
       autoMergeStats.style.display = "none";
     }
   }
+
+  if (merge1HourBtn) {
+    const am = fullauto.auto_merge || {};
+    merge1HourBtn.disabled = !fullauto.enabled || !fullAutoSupported || !am.enabled || (am.stage1_candidates_count || 0) < (am.stage1_required_count || 5);
+  }
+  if (mergeUpload1HourBtn) {
+    const am = fullauto.auto_merge || {};
+    mergeUpload1HourBtn.disabled = !fullauto.enabled || !fullAutoSupported || !am.enabled || (am.stage1_candidates_count || 0) < (am.stage1_required_count || 5);
+  }
+
+  renderLongMergeCandidates(fullauto, fullAutoSupported);
 
   const drafts = fullauto.drafts || [];
   $("fullAutoDrafts").innerHTML = drafts.length
@@ -264,6 +308,70 @@ function renderFullAuto(fullauto) {
     : '<p class="muted">No Full Auto draft yet.</p>';
 }
 
+function renderLongMergeCandidates(fullauto, fullAutoSupported) {
+  const list = $("fullAutoLongMergeList");
+  const count = $("fullAutoLongMergeCount");
+  const mergeBtn = $("fullAutoLongMergeBtn");
+  const uploadBtn = $("fullAutoLongMergeUploadBtn");
+  if (!list || !count || !mergeBtn || !uploadBtn) return;
+  const candidates = fullauto.long_merge_candidates || [];
+  const available = new Set(candidates.map((item) => item.name));
+  state.selectedLongMergeVideos.forEach((name) => {
+    if (!available.has(name)) state.selectedLongMergeVideos.delete(name);
+  });
+  const selected = state.selectedLongMergeVideos.size;
+  count.textContent = `${selected} selected`;
+  list.innerHTML = candidates.length
+    ? candidates.map((item) => `<label class="sourceItem"><input type="checkbox" data-long-merge-video="${escapeHtml(item.name)}" ${state.selectedLongMergeVideos.has(item.name) ? "checked" : ""} /><span>${escapeHtml(item.label || item.name)}</span><small>${Number(item.size_gb || 0).toFixed(2)} GB · ${escapeHtml(formatSlot(item.created_at))}</small></label>`).join("")
+    : '<p class="muted">No eligible local long videos. Long videos must be rendered locally before they can be merged.</p>';
+  const enabled = fullauto.enabled && fullAutoSupported && selected >= 2;
+  mergeBtn.disabled = !enabled;
+  uploadBtn.disabled = !enabled;
+}
+
+function renderStoryBeforeSleep(sleepStory) {
+  const status = $("sleepStoryStatus");
+  if (!$("sleepStoryCreateBtn")) return;
+  const promptCount = sleepStory.prompt_count || 0;
+  const referenceCount = sleepStory.reference_count || 0;
+  const imageCount = sleepStory.image_count || 0;
+  const generatedCount = sleepStory.generated_count || 0;
+  const imageProvider = sleepStory.image_provider || "sd_webui";
+  const localImageUrl = sleepStory.local_image_url || "http://127.0.0.1:7860";
+  if ($("sleepPromptCount")) $("sleepPromptCount").textContent = promptCount;
+  if ($("sleepReferenceCount")) $("sleepReferenceCount").textContent = referenceCount;
+  if ($("sleepGeneratedCount")) $("sleepGeneratedCount").textContent = generatedCount;
+  $("sleepStoryPolicy").textContent =
+    `Image AI: ${imageProvider} at ${localImageUrl}. Fallback image pool: ${imageCount}.`;
+
+  const drafts = sleepStory.drafts || [];
+  $("sleepStoryDrafts").innerHTML = drafts.length
+    ? drafts
+        .map(
+          (draft) => `<article class="fullAutoDraft">
+            <div>
+              <strong>${escapeHtml(draft.title || draft.id)}</strong>
+              <span>${escapeHtml(draft.created_at || "")}</span>
+            </div>
+            <div class="actionsRow compactActions">
+              ${draft.markdown ? `<button type="button" data-sleep-md="${escapeHtml(draft.markdown)}"><i data-lucide="file-text"></i>Text</button>` : ""}
+              ${draft.video ? `<button type="button" data-sleep-video="${escapeHtml(draft.video)}"><i data-lucide="circle-play"></i>MP4</button>` : ""}
+            </div>
+          </article>`
+        )
+        .join("")
+    : '<p class="muted">No Story Before Sleep draft yet.</p>';
+
+  if (drafts.length && !$("sleepStoryReviewPlayer").getAttribute("src")) {
+    const latest = drafts[0];
+    if (latest.video) {
+      $("sleepStoryReviewInfo").textContent = latest.video;
+    }
+  }
+  if (status && !status.textContent) {
+    status.textContent = "Ready. Use Auto Agent Video for the full Sleepu Stories workflow.";
+  }
+}
 function renderSchedule(items) {
   $("schedulePreview").innerHTML = items.length
     ? items.map((item, index) => `<div class="scheduleItem"><i data-lucide="clock"></i><div class="scheduleMain"><strong>${formatSlot(item).split(",")[0] || `Slot ${index + 1}`}</strong><span>${formatSlot(item).split(",").slice(1).join(",").trim()}</span></div><span class="status ${index < 2 ? "ready" : "pending"}">${index < 2 ? "Scheduled" : "Available"}</span></div>`).join("")
@@ -280,9 +388,10 @@ function renderQueue(data) {
 
 function queueItem(job) {
   const status = job.status || "queued";
-  const pct = status === "done" ? "100%" : status === "running" ? "65%" : "0%";
-  const title = actionLabel(job.action);
-  const detail = (job.logs || []).at(-1) || status;
+  const progress = Number.isFinite(Number(job.progress)) ? Math.max(0, Math.min(100, Number(job.progress))) : null;
+  const pct = status === "done" ? "100%" : status === "running" ? `${progress ?? 65}%` : `${progress ?? 0}%`;
+  const title = jobTitle(job);
+  const detail = job.current_step || job.progress_detail || job.stage || (job.logs || []).at(-1) || status;
   return `<div class="queueItem"><div class="jobMain"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span><progress max="100" value="${parseInt(pct, 10)}"></progress></div><span>${pct}</span></div>`;
 }
 
@@ -547,30 +656,135 @@ function updateMegaCollectionButton() {
 }
 
 function renderJobs(jobs) {
+  jobs = jobs.filter(isRecentDashboardJob);
+  renderJobsOverview(jobs);
   const list = jobs.length ? jobs.map((job) => jobItem(job)).join("") : '<p class="muted">No jobs yet.</p>';
   $("activeJobsList").innerHTML = list;
   $("jobsPageList").innerHTML = list;
   const job = jobs.find((item) => item.id === state.currentJob) || jobs[0];
-  $("jobStatus").textContent = job ? `${actionLabel(job.action)} - ${job.status}` : "";
+  $("jobStatus").textContent = job ? `${jobTitle(job)} - ${job.status}${job.account_label ? ` - ${job.account_label}` : ""}` : "";
   $("jobLog").textContent = job ? (job.logs || []).join("\n") : "";
   if (job && (job.status === "running" || job.status === "queued")) {
     $("jobsPanel").classList.remove("collapsed");
   }
 }
 
+function renderJobsOverview(jobs) {
+  const counts = {
+    running: jobs.filter((job) => job.status === "running").length,
+    queued: jobs.filter((job) => job.status === "queued").length,
+    interrupted: jobs.filter((job) => job.status === "interrupted").length,
+  };
+  const overviewHtml = [
+      ["loader-circle", counts.running, "Running", "running"],
+      ["list-ordered", counts.queued, "Queued", "queued"],
+      ["circle-pause", counts.interrupted, "Can resume", "interrupted"],
+    ].map(([iconName, count, label, kind]) => `<div class="jobOverviewMetric ${kind}">${icon(iconName)}<strong>${count}</strong><span>${label}</span></div>`).join("");
+  if ($("jobsOverview")) $("jobsOverview").innerHTML = overviewHtml;
+  if ($("jobsPageOverview")) $("jobsPageOverview").innerHTML = overviewHtml;
+  if ($("jobsUpdatedAt")) {
+    $("jobsUpdatedAt").textContent = `Updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+  }
+}
+
+function isRecentDashboardJob(job) {
+  if (!job?.finished_at) return true;
+  const finishedAt = new Date(job.finished_at).getTime();
+  if (!Number.isFinite(finishedAt)) return true;
+  const ageMs = Math.max(0, Date.now() - finishedAt);
+  if (job.status === "failed") return ageMs <= 15 * 60 * 1000;
+  if (job.status === "done") return ageMs <= 2 * 60 * 60 * 1000;
+  return true;
+}
+
 function jobItem(job) {
   const className = job.status === "done" ? "done" : job.status === "running" ? "running" : job.status === "failed" ? "waiting" : "pending";
-  const detail = (job.logs || []).at(-1) || job.id;
+  const staleQueueDetail = ["running", "interrupted"].includes(job.status) && /waiting in queue/i.test(job.current_step || job.progress_detail || "");
+  const detail = staleQueueDetail
+    ? (job.stage || (job.logs || []).at(-1) || "Running")
+    : (job.current_step || job.progress_detail || job.stage || (job.logs || []).at(-1) || job.id);
   const progress = Number.isFinite(Number(job.progress)) ? Math.max(0, Math.min(100, Number(job.progress))) : 0;
   const progressHtml = job.status === "running" || job.status === "queued" || progress > 0
-    ? `<progress value="${progress}" max="100"></progress><small>${escapeHtml(job.stage || "")}${job.progress_detail ? ` · ${escapeHtml(job.progress_detail)}` : ""}</small>`
+    ? `<div class="jobProgressHead"><span>${escapeHtml(job.stage || "Processing")}</span><strong>${progress}%</strong></div><progress value="${progress}" max="100"></progress>`
     : "";
-  return `<div class="jobItem"><span class="metricIcon ${className === "done" ? "green" : "blue"}">${icon(job.status === "done" ? "circle-check" : job.status === "running" ? "loader-circle" : "clock")}</span><div class="jobMain"><strong>${escapeHtml(actionLabel(job.action))}</strong><span>${escapeHtml(detail)}</span>${progressHtml}</div><span class="status ${className}">${escapeHtml(job.status)}</span></div>`;
+  const recentLogs = (job.recent_logs || job.logs || []).slice(-3);
+  const logsHtml = recentLogs.length ? `<details class="jobMiniLogs"><summary>Latest activity</summary>${recentLogs.map((line) => `<span>${escapeHtml(line)}</span>`).join("")}</details>` : "";
+  const accountHtml = job.account_label ? `<em>${escapeHtml(job.account_label)}</em>` : "";
+  const resumeHtml = job.status === "interrupted" && ["fullauto-long-start", "story-before-sleep-auto"].includes(job.action)
+    ? `<button type="button" class="iconTextButton" onclick="resumeInterruptedJob('${escapeHtml(job.id)}')">${icon("rotate-cw")}Resume</button>`
+    : "";
+  const timeline = jobPipeline(job).map((step, index) => {
+    const activeIndex = jobPipelineIndex(job);
+    const stateName = index < activeIndex ? "complete" : index === activeIndex ? "active" : "pending";
+    return `<span class="jobStep ${stateName}">${index < activeIndex ? icon("check") : ""}${escapeHtml(step)}</span>`;
+  }).join("");
+  const elapsed = formatJobElapsed(job);
+  return `<article class="jobItem jobItemDetailed"><span class="metricIcon ${className === "done" ? "green" : "blue"}">${icon(job.status === "done" ? "circle-check" : job.status === "running" ? "loader-circle" : job.status === "failed" ? "circle-alert" : "clock")}</span><div class="jobMain"><div class="jobTitleRow"><div><strong>${escapeHtml(jobTitle(job))}</strong>${accountHtml}</div><div class="jobMeta"><span>${icon("timer")}${escapeHtml(elapsed)}</span><span class="status ${className}">${escapeHtml(job.status)}</span></div></div><span class="jobCurrentStep">${escapeHtml(detail)}</span>${progressHtml}<div class="jobTimeline">${timeline}</div>${logsHtml}</div>${resumeHtml}</article>`;
+}
+
+function jobPipeline(job) {
+  const action = job?.action || "";
+  if (action === "story-before-sleep-auto") return ["Topic", "Plan", "Write", "Review", "Scenes", "Media", "QA", "Render", "Upload"];
+  if (action === "fullauto-long-start") return ["Outline", "Chapters", "Voice", "Render", "Upload"];
+  if (action === "fullauto-20min-start") return ["Script", "Voice", "Render", "Upload"];
+  if (action === "fullauto-start") return ["Script", "Voice", "Images", "Render", "Upload"];
+  if (action.includes("merge")) return ["Select", "Merge", "Metadata", "Upload"];
+  return ["Queued", "Processing", "Complete"];
+}
+
+function jobPipelineIndex(job) {
+  const steps = jobPipeline(job);
+  if (job.status === "done") return steps.length;
+  if (job.status === "queued") return 0;
+  const latestLog = job.status === "running" ? ((job.logs || []).at(-1) || "") : "";
+  const text = `${job.stage || ""} ${job.current_step || ""} ${latestLog}`.toLowerCase();
+  const keywordSets = job.action === "story-before-sleep-auto"
+    ? [["topic"], ["planner"], ["writer"], ["review"], ["scene", "prompt_optimizer"], ["voice", "image", "parallel_media"], ["qa"], ["render"], ["upload"]]
+    : job.action === "fullauto-long-start"
+      ? [["outline"], ["chapter", "writing script"], ["voice", "tts"], ["render"], ["upload"]]
+      : steps.map((step) => [step.toLowerCase()]);
+  let found = Math.max(0, Math.min(steps.length - 1, Math.floor(Number(job.progress || 0) * steps.length / 100)));
+  keywordSets.forEach((keywords, index) => { if (keywords.some((keyword) => text.includes(keyword))) found = index; });
+  return found;
+}
+
+function formatJobElapsed(job) {
+  const started = new Date(job.started_at || job.created_at || "").getTime();
+  const ended = job.finished_at ? new Date(job.finished_at).getTime() : Date.now();
+  if (!Number.isFinite(started) || !Number.isFinite(ended)) return "--";
+  const total = Math.max(0, Math.floor((ended - started) / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return hours ? `${hours}h ${minutes}m` : minutes ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
+
+async function resumeInterruptedJob(jobId) {
+  try {
+    const result = await requestJson(`/api/jobs/${encodeURIComponent(jobId)}/resume`, { method: "POST" });
+    state.currentJob = result.job_id;
+    showToast("Job resumed from its saved checkpoint.");
+    await refreshStatus();
+  } catch (error) {
+    showToast(`Resume failed: ${error.message}`, "error");
+  }
+}
+
+function jobTitle(job) {
+  return job?.label || actionLabel(job?.action || "");
 }
 
 function actionLabel(action = "") {
-  if (action === "fullauto-start") return "Full Auto Story";
-  if (action === "fullauto-long-start") return "Full Auto Long Video";
+  if (action === "fullauto-start") return "Shorts Job";
+  if (action === "fullauto-long-start") return "Long Video Job";
+  if (action === "fullauto-20min-start") return "20-Min Video Job";
+  if (action === "fullauto-long-resume") return "Long Resume Upload Job";
+  if (action === "fullauto-merge-1hour") return "Full Auto Merge 1 Hour";
+  if (action === "fullauto-merge-upload-1hour") return "Full Auto Merge + Upload 1 Hour";
+  if (action === "fullauto-merge-long-selected") return "Merge Selected Long Videos";
+  if (action === "fullauto-merge-upload-long-selected") return "Merge + Upload Selected Long Videos";
+  if (action === "story-before-sleep-test") return "Story Before Sleep Test";
+  if (action === "story-before-sleep-auto") return "Sleepu Stories Auto Agent";
   return action.split("-").map((word) => word ? word[0].toUpperCase() + word.slice(1) : "").join(" ");
 }
 
@@ -582,6 +796,7 @@ function renderVoices(voices) {
   renderVoiceSelect($("conversationVoice1"), voices, "en-US-JennyNeural");
   renderVoiceSelect($("conversationVoice2"), voices, "en-US-GuyNeural");
   renderVoiceSelect($("conversationVoice3"), voices, "en-US-AvaNeural");
+  renderVoiceSelect($("sleepStoryVoice"), voices, "kokoro-en:bm_lewis");
 }
 
 function renderVoiceSelect(select, voices, fallback, previousDefault = "") {
@@ -828,6 +1043,244 @@ async function runFullAutoTwentyMin() {
   return job;
 }
 
+function boundedNumberInput(id, fallback, min, max) {
+  const value = Number.parseInt($(id)?.value ?? "", 10);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, value));
+}
+
+async function runFullAutoBulk() {
+  const shortCount = boundedNumberInput("fullAutoBulkShortCount", 0, 0, 10);
+  const twentyMinCount = boundedNumberInput("fullAutoBulkTwentyMinCount", 0, 0, 5);
+  const longCount = boundedNumberInput("fullAutoBulkLongCount", 0, 0, 3);
+  if (shortCount + twentyMinCount + longCount < 1) {
+    showToast("Choose at least one video to create.", "error");
+    return null;
+  }
+  const proceed = window.confirm(
+    `Run Full Auto for 3 Buddhist channels?\n\n` +
+    `Each channel: ${shortCount} Short(s), ${twentyMinCount} 20-min, ${longCount} long video(s).`
+  );
+  if (!proceed) return null;
+  const data = await requestJson("/api/fullauto-bulk-action", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      short_count: shortCount,
+      twenty_min_count: twentyMinCount,
+      long_count: longCount,
+    }),
+  });
+  state.currentJob = data.job_id;
+  await refresh();
+  const job = await pollJob(data.job_id);
+  await refresh();
+  showToast(jobSummary(job), job.status === "done" ? "success" : "error");
+  return job;
+}
+
+async function runYouTubeResearch() {
+  const channelUrl = $("youtubeResearchUrl")?.value.trim();
+  if (!channelUrl) {
+    showToast("Paste a YouTube channel link first.", "error");
+    return null;
+  }
+  const status = $("youtubeResearchStatus");
+  if (status) status.textContent = "Crawling channel metadata...";
+  const data = await requestJson("/api/youtube-research", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      channel_url: channelUrl,
+      tab: $("youtubeResearchTab")?.value || "shorts",
+      limit: boundedNumberInput("youtubeResearchLimit", 24, 1, 80),
+      transcript_limit: boundedNumberInput("youtubeResearchTranscriptLimit", 8, 0, 30),
+    }),
+  });
+  state.currentJob = data.job_id;
+  await refresh();
+  const job = await pollJob(data.job_id);
+  await refresh();
+  const ok = job.status === "done";
+  const lastLog = (job.logs || []).slice(-1)[0] || "";
+  if (status) status.textContent = ok ? lastLog : jobSummary(job);
+  showToast(ok ? "Channel research finished. Open Research Folder to view report." : jobSummary(job), ok ? "success" : "error");
+  return job;
+}
+
+async function runViewOptimizer() {
+  const status = $("youtubeResearchStatus");
+  if (status) status.textContent = "Building view optimizer report from research and local drafts...";
+  const data = await requestJson("/api/view-optimizer", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ limit: boundedNumberInput("youtubeResearchLimit", 80, 10, 200) }),
+  });
+  state.currentJob = data.job_id;
+  await refresh();
+  const job = await pollJob(data.job_id);
+  await refresh();
+  const ok = job.status === "done";
+  const lastLog = (job.logs || []).slice(-1)[0] || "";
+  if (status) status.textContent = ok ? lastLog : jobSummary(job);
+  showToast(ok ? "View optimizer report finished. Open Research Folder to view it." : jobSummary(job), ok ? "success" : "error");
+  return job;
+}
+
+async function runYouTubeAnalyticsSync() {
+  const status = $("youtubeResearchStatus");
+  if (status) status.textContent = "Syncing YouTube Analytics for uploaded drafts...";
+  const data = await requestJson("/api/youtube-analytics-sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ days: 90, limit: 120 }),
+  });
+  state.currentJob = data.job_id;
+  await refresh();
+  const job = await pollJob(data.job_id);
+  await refresh();
+  const ok = job.status === "done";
+  const lastLog = (job.logs || []).slice(-1)[0] || "";
+  if (status) status.textContent = ok ? lastLog : jobSummary(job);
+  showToast(ok ? "YouTube Analytics sync finished. Open Research Folder to view it." : jobSummary(job), ok ? "success" : "error");
+  return job;
+}
+
+async function runStoryBeforeSleepTest(mode = "test") {
+  const title = $("sleepStoryTitle")?.value.trim() || "A Gentle Story Before Sleep";
+  const prompt = $("sleepStoryPrompt")?.value.trim() || "";
+  const targetMinutes = boundedNumberInput("sleepStoryMinutes", 10, 1, 30);
+  const imageCount = boundedNumberInput("sleepStoryImageCount", 8, 1, 32);
+  const waitForImages = Boolean($("sleepStoryWaitImages")?.checked);
+  const voice = $("sleepStoryVoice")?.value || "en-US-BrianNeural";
+  const status = $("sleepStoryStatus");
+  const button = $("sleepStoryCreateBtn");
+  const autoButton = $("sleepStoryAutoBtn");
+  if (button) button.disabled = true;
+  if (autoButton) autoButton.disabled = true;
+  if (status) {
+    status.textContent = mode === "auto"
+      ? "Running full Sleepu Stories workflow: story, images, voice, metadata, QA, render..."
+      : "Creating a quick local test render with script, voice, scenes, and MP4...";
+  }
+  try {
+    const data = await requestJson("/api/story-before-sleep-action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: mode,
+        title,
+        prompt,
+        target_minutes: targetMinutes,
+        voice,
+        image_count: imageCount,
+        wait_for_images: waitForImages,
+      }),
+    });
+    state.currentJob = data.job_id;
+    await refresh();
+    const job = await pollJob(data.job_id);
+    await refresh();
+    if (job.status === "done" && job.output_video) {
+      const player = $("sleepStoryReviewPlayer");
+      player.setAttribute("src", `/api/video/${encodeURIComponent(job.output_video)}`);
+      player.load();
+      $("sleepStoryReviewInfo").textContent = job.output_video;
+      if (job.output_markdown) {
+        const response = await fetch(`/api/story-before-sleep/markdown/${encodeURIComponent(job.output_markdown)}`);
+        $("sleepStoryMarkdownReview").value = await response.text();
+      }
+      if (status) status.textContent = mode === "auto" ? "Sleepu Stories Auto Agent video created." : "Quick test video created.";
+    } else if (status) {
+      status.textContent = "Sleepu Stories render failed.";
+    }
+    showToast(jobSummary(job), job.status === "done" ? "success" : "error");
+    return job;
+  } finally {
+    if (button) button.disabled = false;
+    if (autoButton) autoButton.disabled = false;
+  }
+}
+
+async function uploadSleepStoryReferences(input) {
+  if (!input.files?.length) return;
+  const form = new FormData();
+  Array.from(input.files).forEach((file) => form.append("files", file));
+  $("sleepStoryStatus").textContent = "Uploading sleep-story reference art...";
+  const response = await fetch("/api/story-before-sleep/reference", {
+    method: "POST",
+    body: form,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || "Upload failed");
+  }
+  input.value = "";
+  $("sleepStoryStatus").textContent = `Uploaded ${data.saved?.length || 0} reference image(s).`;
+  await refresh();
+  showToast("Sleep-story reference art uploaded.", "success");
+}
+
+async function runFullAutoMerge1Hour() {
+  const proceed = window.confirm("Gộp 5 video 20 phút thành 1 video 1 giờ?");
+  if (!proceed) return null;
+  const targetAccount = state.latestData?.active_account;
+  const data = await requestJson("/api/fullauto-action", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "merge-1hour", target_account: targetAccount }),
+  });
+  state.currentJob = data.job_id;
+  await refresh();
+  const job = await pollJob(data.job_id);
+  await refresh();
+  showToast(jobSummary(job), job.status === "done" ? "success" : "error");
+  return job;
+}
+
+async function runFullAutoMergeUpload1Hour() {
+  const proceed = window.confirm("Gộp 5 video 20 phút và upload luôn video 1 giờ?");
+  if (!proceed) return null;
+  const targetAccount = state.latestData?.active_account;
+  const data = await requestJson("/api/fullauto-action", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "merge-upload-1hour", target_account: targetAccount }),
+  });
+  state.currentJob = data.job_id;
+  await refresh();
+  const job = await pollJob(data.job_id);
+  await refresh();
+  showToast(jobSummary(job), job.status === "done" ? "success" : "error");
+  return job;
+}
+
+async function runSelectedLongMerge(upload = false) {
+  const filenames = Array.from(state.selectedLongMergeVideos);
+  if (filenames.length < 2) throw new Error("Choose at least 2 long videos to merge.");
+  const actionLabel = upload ? "Gộp và upload" : "Gộp";
+  const cleanupNotice = upload
+    ? "Video nguồn chỉ bị xóa sau khi gộp thành công. File gộp chỉ bị xóa sau khi YouTube upload thành công."
+    : "Video nguồn chỉ bị xóa sau khi gộp thành công.";
+  if (!window.confirm(`${actionLabel} ${filenames.length} video long đã chọn?\n\n${cleanupNotice}`)) return null;
+  const data = await requestJson("/api/fullauto-action", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: upload ? "merge-upload-long-selected" : "merge-long-selected",
+      target_account: state.latestData?.active_account,
+      filenames,
+    }),
+  });
+  state.currentJob = data.job_id;
+  await refresh();
+  const job = await pollJob(data.job_id);
+  await refresh();
+  if (job.status === "done") state.selectedLongMergeVideos.clear();
+  showToast(jobSummary(job), job.status === "done" ? "success" : "error");
+  return job;
+}
+
 async function saveFullAutoProvider() {
   const [provider, model] = $("fullAutoModelSelect").value.split("|", 2);
   await requestJson("/api/fullauto-provider", {
@@ -900,7 +1353,7 @@ async function deleteSelectedMegaCollections() {
 async function pollJob(jobId) {
   for (;;) {
     const job = await requestJson(`/api/jobs/${jobId}`);
-    $("jobStatus").textContent = `${actionLabel(job.action)} - ${job.status}`;
+    $("jobStatus").textContent = `${jobTitle(job)} - ${job.status}${job.account_label ? ` - ${job.account_label}` : ""}`;
     $("jobLog").textContent = (job.logs || []).join("\n");
     if (job.status !== "running" && job.status !== "queued") return job;
     await new Promise((resolve) => setTimeout(resolve, 1200));
@@ -1329,6 +1782,31 @@ $("storyAssetsBtn").addEventListener("click", () => attachStoryAssets().catch((e
 $("fullAutoStartBtn").addEventListener("click", () => runFullAuto().catch((error) => showToast(error.message, "error")));
 $("fullAutoLongStartBtn").addEventListener("click", () => runFullAutoLong().catch((error) => showToast(error.message, "error")));
 $("fullAutoTwentyMinStartBtn").addEventListener("click", () => runFullAutoTwentyMin().catch((error) => showToast(error.message, "error")));
+$("fullAutoBulkBtn").addEventListener("click", () => runFullAutoBulk().catch((error) => showToast(error.message, "error")));
+$("youtubeResearchBtn").addEventListener("click", () => runYouTubeResearch().catch((error) => {
+  $("youtubeResearchStatus").textContent = error.message;
+  showToast(error.message, "error");
+}));
+$("youtubeAnalyticsSyncBtn").addEventListener("click", () => runYouTubeAnalyticsSync().catch((error) => {
+  $("youtubeResearchStatus").textContent = error.message;
+  showToast(error.message, "error");
+}));
+$("viewOptimizerBtn").addEventListener("click", () => runViewOptimizer().catch((error) => {
+  $("youtubeResearchStatus").textContent = error.message;
+  showToast(error.message, "error");
+}));
+$("sleepStoryCreateBtn").addEventListener("click", () => runStoryBeforeSleepTest().catch((error) => {
+  $("sleepStoryStatus").textContent = error.message;
+  showToast(error.message, "error");
+}));
+$("sleepStoryAutoBtn").addEventListener("click", () => runStoryBeforeSleepTest("auto").catch((error) => {
+  $("sleepStoryStatus").textContent = error.message;
+  showToast(error.message, "error");
+}));
+$("fullAutoMerge1HourBtn").addEventListener("click", () => runFullAutoMerge1Hour().catch((error) => showToast(error.message, "error")));
+$("fullAutoMergeUpload1HourBtn").addEventListener("click", () => runFullAutoMergeUpload1Hour().catch((error) => showToast(error.message, "error")));
+$("fullAutoLongMergeBtn").addEventListener("click", () => runSelectedLongMerge(false).catch((error) => showToast(error.message, "error")));
+$("fullAutoLongMergeUploadBtn").addEventListener("click", () => runSelectedLongMerge(true).catch((error) => showToast(error.message, "error")));
 $("fullAutoModelSelect").addEventListener("change", () => saveFullAutoProvider().catch((error) => showToast(error.message, "error")));
 $("storyAudioSelect").addEventListener("change", updateVoicePreview);
 $("lyricsAudioSelect").addEventListener("change", updateLyricsAudioSource);
@@ -1348,8 +1826,24 @@ $("audioUpload").addEventListener("change", (event) => uploadFiles("audio", even
 $("imageUpload").addEventListener("change", (event) => uploadFiles("image", event.target).catch((error) => showToast(error.message, "error")));
 $("shortImageUpload").addEventListener("change", (event) => uploadFiles("short-image", event.target).catch((error) => showToast(error.message, "error")));
 $("thumbUpload").addEventListener("change", (event) => uploadFiles("thumbnail", event.target).catch((error) => showToast(error.message, "error")));
+const sleepStoryReferenceUpload = $("sleepStoryReferenceUpload");
+if (sleepStoryReferenceUpload) {
+  sleepStoryReferenceUpload.addEventListener("change", (event) => uploadSleepStoryReferences(event.target).catch((error) => {
+    $("sleepStoryStatus").textContent = error.message;
+    showToast(error.message, "error");
+  }));
+}
 
 document.addEventListener("change", async (event) => {
+  const longMergeInput = event.target.closest("[data-long-merge-video]");
+  if (longMergeInput) {
+    const filename = longMergeInput.dataset.longMergeVideo;
+    if (longMergeInput.checked) state.selectedLongMergeVideos.add(filename);
+    else state.selectedLongMergeVideos.delete(filename);
+    renderLongMergeCandidates(state.latestData?.fullauto || {}, Boolean(state.latestData?.capabilities?.fullauto));
+    return;
+  }
+
   const input = event.target.closest("[data-fullauto-thumbnail]");
   if (!input || !input.files?.length) return;
   const form = new FormData();
@@ -1465,6 +1959,30 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  const sleepMd = event.target.closest("[data-sleep-md]");
+  if (sleepMd) {
+    const filename = sleepMd.dataset.sleepMd;
+    const response = await fetch(`/api/story-before-sleep/markdown/${encodeURIComponent(filename)}`);
+    if (!response.ok) {
+      showToast(await response.text(), "error");
+      return;
+    }
+    $("sleepStoryMarkdownReview").value = await response.text();
+    $("sleepStoryReviewInfo").textContent = filename;
+    return;
+  }
+
+  const sleepVideo = event.target.closest("[data-sleep-video]");
+  if (sleepVideo) {
+    const filename = sleepVideo.dataset.sleepVideo;
+    const player = $("sleepStoryReviewPlayer");
+    player.setAttribute("src", `/api/video/${encodeURIComponent(filename)}`);
+    player.load();
+    $("sleepStoryReviewInfo").textContent = filename;
+    player.play().catch(() => {});
+    return;
+  }
+
   const fullAutoMd = event.target.closest("[data-fullauto-md]");
   if (fullAutoMd) {
     const filename = fullAutoMd.dataset.fullautoMd;
@@ -1523,3 +2041,4 @@ function showInlineVideo(url, label) {
   player.closest(".videoReviewPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
   player.play().catch(() => {});
 }
+

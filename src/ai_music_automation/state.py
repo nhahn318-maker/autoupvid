@@ -102,6 +102,25 @@ class StateStore:
             if item.get("publish_at")
         }
 
+    def youtube_video_ids(self) -> set[str]:
+        return {
+            str(item["youtube_id"])
+            for item in self.data["uploads"]
+            if item.get("youtube_id")
+        }
+
+    def prune_missing_youtube_uploads(self, existing_video_ids: set[str]) -> int:
+        before_uploads = len(self.data["uploads"])
+        self.data["uploads"] = [
+            item
+            for item in self.data["uploads"]
+            if not item.get("youtube_id") or str(item["youtube_id"]) in existing_video_ids
+        ]
+        removed = before_uploads - len(self.data["uploads"])
+        if removed:
+            self.save()
+        return removed
+
     def prune_missing_audio(self) -> int:
         before_processed = len(self.data["processed_audio"])
         before_uploads = len(self.data["uploads"])

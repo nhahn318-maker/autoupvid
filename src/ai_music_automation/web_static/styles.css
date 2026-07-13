@@ -21,13 +21,13 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: Inter, "Segoe UI", Arial, sans-serif;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 h1, h2, h3, p { margin: 0; }
-h1 { font-size: 22px; font-weight: 760; }
-h2 { font-size: 25px; line-height: 1.15; }
-h3 { align-items: center; display: flex; gap: 8px; font-size: 16px; font-weight: 760; }
+h1 { font-size: 24px; font-weight: 760; }
+h2 { font-size: 28px; line-height: 1.15; }
+h3 { align-items: center; display: flex; gap: 8px; font-size: 17px; font-weight: 760; }
 button, select, input, textarea { font: inherit; }
 
 .toast {
@@ -69,8 +69,8 @@ button, select {
   border: 1px solid var(--line);
   border-radius: 7px;
   color: var(--ink);
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: 40px;
+  padding: 0 14px;
 }
 
 button {
@@ -149,7 +149,7 @@ button.primary, .fileButton, .navItem.active {
   display: flex;
   font-weight: 760;
   gap: 12px;
-  min-height: 42px;
+  min-height: 46px;
   padding: 0 16px;
   text-decoration: none;
 }
@@ -158,10 +158,10 @@ button.primary, .fileButton, .navItem.active {
 
 .content {
   min-width: 0;
-  padding: 28px 24px 0;
+  padding: 32px 30px 0;
 }
 
-.page { display: none; margin: 0 auto; max-width: 1280px; }
+.page { display: none; margin: 0; max-width: none; width: 100%; }
 .page.active { display: grid; gap: 24px; }
 
 .pageTitle { display: grid; gap: 6px; }
@@ -242,7 +242,7 @@ button.primary, .fileButton, .navItem.active {
 }
 .twoCol.compact { grid-template-columns: minmax(0, 500px) minmax(360px, 500px); }
 
-.panel { padding: 24px; }
+.panel { padding: 28px; }
 .panel.flush { padding: 0; overflow: hidden; }
 .panelHead { justify-content: space-between; margin-bottom: 16px; }
 .videoReviewPanel {
@@ -256,6 +256,146 @@ button.primary, .fileButton, .navItem.active {
   display: block;
   max-height: 520px;
   width: 100%;
+}
+
+.sleepHero {
+  align-items: center;
+  background: #f2f8f6;
+  border: 1px solid #b7ded2;
+  border-radius: 8px;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 18px;
+}
+.sleepHeroMain {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  min-width: 0;
+}
+.sleepHeroMain > svg {
+  background: #dff3ed;
+  border-radius: 8px;
+  color: #087f5b;
+  flex: 0 0 auto;
+  height: 42px;
+  padding: 10px;
+  width: 42px;
+}
+.sleepHeroMain strong {
+  display: block;
+  font-size: 15px;
+  margin-bottom: 5px;
+}
+.sleepHeroMain p { color: #24564a; overflow-wrap: anywhere; }
+.sleepStats {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(92px, 1fr));
+}
+.sleepStats span {
+  background: #fff;
+  border: 1px solid #cfe6df;
+  border-radius: 8px;
+  color: #3f3f46;
+  display: grid;
+  gap: 2px;
+  min-height: 56px;
+  padding: 8px 10px;
+}
+.sleepStats strong {
+  color: #087f5b;
+  font-size: 19px;
+  line-height: 1;
+}
+.sleepWorkbench {
+  align-items: start;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) 330px;
+}
+.sleepComposer,
+.sleepSidePanel,
+.sleepDraftPanel {
+  display: grid;
+  gap: 16px;
+}
+.sleepFieldStack {
+  display: grid;
+  gap: 14px;
+}
+.sleepPromptBox {
+  min-height: 190px;
+}
+.sleepSettings {
+  align-items: end;
+}
+.sleepCheck {
+  align-items: center;
+  background: #fafafa;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 12px;
+}
+.sleepCheck input {
+  min-height: auto;
+}
+.sleepPrimaryActions {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(210px, 1fr) minmax(180px, .72fr);
+}
+.sleepPrimaryActions button,
+.sleepFolderGrid button {
+  align-items: center;
+  display: inline-flex;
+  gap: 9px;
+  justify-content: center;
+}
+.sleepBigAction {
+  min-height: 46px;
+}
+.sleepFolderGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+.sleepFolderGrid button {
+  justify-content: flex-start;
+  min-height: 40px;
+}
+.sleepFolderGrid button:last-child {
+  grid-column: 1 / -1;
+}
+.sleepSteps {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+}
+.sleepSteps div {
+  align-items: center;
+  color: #3f3f46;
+  display: flex;
+  gap: 10px;
+}
+.sleepSteps svg {
+  color: #087f5b;
+  height: 17px;
+  width: 17px;
+}
+.sleepReviewGrid {
+  align-items: start;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, .95fr);
+}
+.sleepDraftPanel .fullAutoMarkdown {
+  min-height: 300px;
 }
 
 .scheduleList, .queueList, .jobList, .recentList, .sourceList, .collectionOutputs, .storageCleanupList, .conversationAudioList {
@@ -283,6 +423,62 @@ button.primary, .fileButton, .navItem.active {
 }
 .jobMain small {
   color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.jobMain em {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  margin-top: 3px;
+}
+.jobItemDetailed { align-items: flex-start; padding: 14px; }
+.jobItemDetailed .jobMain { flex: 1; gap: 8px; width: 100%; }
+.jobTitleRow, .jobMeta, .jobProgressHead {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+.jobMeta { color: var(--muted); flex-wrap: wrap; font-size: 12px; }
+.jobMeta > span:first-child { align-items: center; display: inline-flex; gap: 5px; }
+.jobMeta svg { height: 14px; width: 14px; }
+.jobCurrentStep { color: #263f50; font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
+.jobProgressHead { color: var(--muted); font-size: 12px; }
+.jobProgressHead strong { color: #174f70; font-size: 12px; }
+.jobTimeline { display: flex; flex-wrap: wrap; gap: 6px; }
+.jobStep {
+  align-items: center;
+  background: #f3f5f6;
+  border: 1px solid #e1e6e9;
+  border-radius: 4px;
+  color: #74828b;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 3px;
+  min-height: 24px;
+  padding: 3px 7px;
+}
+.jobStep svg { height: 12px; width: 12px; }
+.jobStep.complete { background: #eaf7ef; border-color: #c8e6d3; color: #237247; }
+.jobStep.active { background: #e9f4fb; border-color: #9bc9e2; color: #155f88; }
+.jobMiniLogs {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 8px;
+}
+.jobMiniLogs summary { color: #405b6c; cursor: pointer; font-size: 12px; font-weight: 700; }
+.jobMiniLogs[open] summary { margin-bottom: 5px; }
+.jobMiniLogs span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
@@ -578,12 +774,42 @@ audio { width: 100%; }
   display: flex;
   justify-content: space-between;
   margin: 0 auto 16px;
-  max-width: 1280px;
+  max-width: none;
+  width: 100%;
 }
+.activeJobsHead > div { display: grid; gap: 3px; }
+.jobsUpdatedAt { color: var(--muted); font-size: 11px; }
+.jobsOverview {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  margin: 0 auto 12px;
+  max-width: none;
+  width: 100%;
+}
+.jobOverviewMetric {
+  align-items: center;
+  background: #f8fafb;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: 20px auto 1fr;
+  min-height: 42px;
+  padding: 8px 10px;
+}
+.jobOverviewMetric svg { color: #547080; height: 17px; width: 17px; }
+.jobOverviewMetric strong { font-size: 16px; }
+.jobOverviewMetric span { color: var(--muted); font-size: 12px; }
+.jobOverviewMetric.running { border-left: 3px solid #267da7; }
+.jobOverviewMetric.queued { border-left: 3px solid #d39a33; }
+.jobOverviewMetric.interrupted { border-left: 3px solid #8a6db0; }
+.jobsPageOverview { margin-bottom: 14px; }
 .activeJobs > .jobList, .activeJobs > p {
   margin-left: auto;
   margin-right: auto;
-  max-width: 1280px;
+  max-width: none;
+  width: 100%;
 }
 
 .youtubeLinks { display: flex; gap: 8px; }
@@ -665,6 +891,47 @@ audio { width: 100%; }
   color: var(--muted);
   line-height: 1.35;
 }
+.fullAutoBulkPanel {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, auto) auto;
+}
+.fullAutoBulkPanel > div:first-child {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.bulkControls {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, 86px);
+}
+.bulkControls label {
+  display: grid;
+  gap: 5px;
+}
+.bulkControls input {
+  min-width: 0;
+  text-align: center;
+}
+.youtubeResearchPanel {
+  display: grid;
+  gap: 14px;
+}
+.youtubeResearchPanel > div:first-child {
+  display: grid;
+  gap: 6px;
+}
+.researchGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(280px, 1fr) 150px 110px 150px;
+}
+.researchGrid label {
+  display: grid;
+  gap: 6px;
+}
 .fullAutoDrafts {
   display: grid;
   gap: 12px;
@@ -712,6 +979,43 @@ audio { width: 100%; }
   min-height: 260px;
   resize: vertical;
 }
+.clusterSummary {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.clusterRow {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(0, 70, 255, 0.18);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+}
+.clusterRow > div:first-child {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+.clusterRow span,
+.clusterLatest span {
+  color: #3f3f46;
+  font-size: 12px;
+}
+.clusterLatest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.clusterLatest span {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 4px 8px;
+}
 #fullAutoAudioReview,
 #fullAutoVideoReview {
   margin-top: 12px;
@@ -721,6 +1025,15 @@ audio { width: 100%; }
 @media (max-width: 1100px) {
   .metrics, .uploadCards, .folderGrid, .twoCol, .twoCol.compact, .formGrid, .formGrid.two, .formGrid.three, .manualUploadGrid {
     grid-template-columns: 1fr;
+  }
+  .sleepHero,
+  .sleepWorkbench,
+  .sleepReviewGrid {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+  .sleepHero {
+    display: grid;
   }
   .lyricsSetup {
     grid-template-columns: 1fr;
@@ -736,9 +1049,24 @@ audio { width: 100%; }
     align-items: stretch;
     flex-direction: column;
   }
+  .fullAutoBulkPanel {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+  .researchGrid {
+    grid-template-columns: 1fr;
+  }
+  .bulkControls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
+  .jobsOverview { grid-template-columns: 1fr; }
+  .jobItemDetailed { display: grid; grid-template-columns: 32px minmax(0, 1fr); }
+  .jobItemDetailed > button { grid-column: 2; justify-self: start; }
+  .jobTitleRow { align-items: flex-start; }
+  .jobMeta { justify-content: flex-end; }
   .appShell { grid-template-columns: 1fr; }
   .sidebar {
     border-bottom: 1px solid var(--line);
@@ -751,4 +1079,12 @@ audio { width: 100%; }
   .navItem { flex: 0 0 auto; }
   .content { padding: 18px 14px 0; }
   .activeJobs { margin-left: -14px; margin-right: -14px; }
+  .sleepStats,
+  .sleepPrimaryActions,
+  .sleepFolderGrid {
+    grid-template-columns: 1fr;
+  }
+  .sleepFolderGrid button:last-child {
+    grid-column: auto;
+  }
 }

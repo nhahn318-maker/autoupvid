@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import random
 from collections.abc import Callable
 import shutil
 from datetime import datetime, timedelta
@@ -15,9 +16,25 @@ from .metadata import build_metadata
 from .render import render_video
 from .scheduler import next_publish_times, parse_time, to_rfc3339_utc
 from .state import StateStore
-from .youtube import count_videos_on_date, create_token, get_youtube_service, list_scheduled_publish_times, upload_video
+from .youtube import count_videos_on_date, create_token, get_youtube_service, list_existing_video_ids, list_scheduled_publish_times, send_email_notification, upload_video
 
 UploadStatusCallback = Callable[[str, int, str], None]
+
+
+def notify_cli_event(config, command: str, status: str, details: list[str] | None = None) -> None:
+    active_account = get_active_account_id(config)
+    account = config.get("accounts", active_account, default={})
+    account_label = account.get("label", active_account) if isinstance(account, dict) else active_account
+    subject_prefix = "Thanh cong" if status == "success" else "That bai"
+    subject = f"{subject_prefix} - CLI {command} - {account_label}"
+    body = (
+        f"Lenh: {command}\n"
+        f"Trang thai: {status}\n"
+        f"Tai khoan: {account_label}\n"
+        f"Thoi gian: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        f"Chi tiet:\n" + ("\n".join(details or ["(khong co chi tiet)"]))
+    )
+    send_email_notification(subject, body, notification_type=status)
 
 
 def main() -> None:
@@ -82,22 +99,47 @@ def main() -> None:
             maybe_create_duration_collection(config, paths, state, dry_run=args.dry_run)
         return
 
-    if args.command == "render":
-        for track in tracks:
-            output = render_video(track, paths["output_dir"], config.get("render"))
-            print(f"Rendered: {output}")
-            if config.get("shorts", "enabled", default=False):
-                short_output = render_short(short_track_for_paths(track, paths), paths["output_dir"], config)
-                print(f"Rendered short: {short_output}")
-        return
+    try:
+        if args.command == "render":
+            rendered: list[str] = []
+            for track in tracks:
+                output = render_video(track, paths["output_dir"], config.get("render"))
+                print(f"Rendered: {output}")
+                rendered.append(output.name)
+                if config.get("shorts", "enabled", default=False):
+                    short_output = render_short(short_track_for_paths(track, paths), paths["output_dir"], config)
+                    print(f"Rendered short: {short_output}")
+                    rendered.append(short_output.name)
+            notify_cli_event(config, "render", "success", rendered)
+            return
 
-    if args.command == "upload":
-        upload_tracks(config, paths, state, tracks, schedule=False, dry_run=args.dry_run)
-        return
+        if args.command == "upload":
+            upload_tracks(config, paths, state, tracks, schedule=False, dry_run=args.dry_run)
+            notify_cli_event(
+                config,
+                "upload",
+                "success",
+                [f"So track xu ly: {len(tracks)}", f"Dry run: {args.dry_run}"],
+            )
+            return
 
-    if args.command == "daily":
-        upload_tracks(config, paths, state, tracks, schedule=True, dry_run=args.dry_run, upload_types=upload_types)
-        maybe_create_duration_collection(config, paths, state, dry_run=args.dry_run)
+        if args.command == "daily":
+            upload_tracks(config, paths, state, tracks, schedule=True, dry_run=args.dry_run, upload_types=upload_types)
+            maybe_create_duration_collection(config, paths, state, dry_run=args.dry_run)
+            notify_cli_event(
+                config,
+                "daily",
+                "success",
+                [f"So track xu ly: {len(tracks)}", f"Dry run: {args.dry_run}", f"Upload types: {sorted(upload_types)}"],
+            )
+    except Exception as exc:
+        notify_cli_event(
+            config,
+            args.command,
+            "failure",
+            [f"Loi: {exc}", f"Dry run: {args.dry_run}", f"So track: {len(tracks)}"],
+        )
+        raise
 
 
 def init_project(root: Path) -> None:
@@ -160,13 +202,15 @@ def upload_tracks(
 
         return _callback
 
-    blocked_times = state.used_publish_times() if schedule else set()
-
     service = None
     youtube_date_counts: dict[str, int] = {}
     youtube_blocked_dates: set[str] = set()
     if not dry_run:
         service = get_youtube_service(paths["credentials_file"], account_token_path(config))
+        if schedule:
+            sync_missing_youtube_uploads(state, service, emit_log)
+
+    blocked_times = state.used_publish_times() if schedule else set()
 
     for track in tracks:
         if should_render_normal_before_short(config, upload_types):
@@ -300,11 +344,59 @@ def scheduled_upload_types(config, shorts_enabled: bool) -> set[str]:
     return upload_types & {"normal", "short"}
 
 
+def sync_missing_youtube_uploads(state: StateStore, service, emit_log: Callable[[str], None] | None = None) -> int:
+    video_ids = state.youtube_video_ids()
+    if not video_ids:
+        return 0
+    existing_video_ids = list_existing_video_ids(service, video_ids)
+    removed = state.prune_missing_youtube_uploads(existing_video_ids)
+    if removed and emit_log:
+        emit_log(f"Synced state: removed {removed} deleted YouTube upload record(s).")
+    return removed
+
+
 def short_track_for_paths(track, paths) -> object:
     short_image_dir = paths.get("short_image_dir")
     if short_image_dir:
-        return track_with_images_from_dir(track, short_image_dir)
+        image_files = list_files(short_image_dir, IMAGE_EXTENSIONS)
+        if image_files:
+            count = min(5, len(image_files))
+            chosen = random.sample(image_files, k=count)
+            if len(chosen) < 5:
+                chosen.extend(random.choices(image_files, k=5 - len(chosen)))
+            return track.__class__(
+                audio_path=track.audio_path,
+                image_paths=tuple(chosen),
+                title=track.title,
+            )
+        return track_with_images_from_dir(track, short_image_dir, allow_latest_fallback=False)
     return track
+
+
+def fullauto_story_short_track(track, config) -> object:
+    active_account = str(get_active_account_id(config) or "").strip()
+    if active_account not in {"account1", "account2", "account3", "account4"}:
+        return track
+    image_pool_dirs = config.get("fullauto", "image_pool_dirs", default={}) or {}
+    image_pool_dir = ""
+    if isinstance(image_pool_dirs, dict):
+        image_pool_dir = str(image_pool_dirs.get(active_account) or "").strip()
+    if not image_pool_dir:
+        image_pool_dir = str(config.get("fullauto", "image_pool_dir", default="") or "").strip()
+    if not image_pool_dir:
+        return track
+    pool_dir = config.root / image_pool_dir
+    image_files = list_files(pool_dir, IMAGE_EXTENSIONS)
+    if not image_files:
+        return track
+    chosen = random.sample(image_files, k=min(5, len(image_files)))
+    if len(chosen) < 5:
+        chosen.extend(random.choices(image_files, k=5 - len(chosen)))
+    return track.__class__(
+        audio_path=track.audio_path,
+        image_paths=tuple(chosen),
+        title=track.title,
+    )
 
 
 def short_publish_time_for_normal(config, normal_publish_time: datetime, blocked_times: set[str]) -> datetime:
@@ -433,9 +525,12 @@ def reserve_next_publish_time(
     youtube_date_counts = youtube_date_counts if youtube_date_counts is not None else {}
     timezone_name = config.get("schedule", "timezone")
     if slot_kind == "short":
-        configured_times = config.get("shorts", "publish_times", default=None) or config.get("schedule", "publish_times")
+        configured_times = config.get("schedule", "publish_times") or config.get("shorts", "publish_times", default=None)
     else:
         configured_times = config.get("schedule", "publish_times")
+    allowed_weekdays = config.get("schedule", "allowed_weekdays", default=None)
+    day_interval = config.get("schedule", "day_interval", default=None)
+    interval_anchor_date = config.get("schedule", "interval_anchor_date", default=None)
 
     if service is not None:
         try:
@@ -475,6 +570,9 @@ def reserve_next_publish_time(
             timezone_name=timezone_name,
             blocked_times=blocked_times,
             blocked_dates=blocked_dates,
+            allowed_weekdays=allowed_weekdays,
+            day_interval=day_interval,
+            interval_anchor_date=interval_anchor_date,
         )[0]
         day_key = publish_time.date().isoformat()
         if service is not None and day_key not in youtube_date_counts:
@@ -507,13 +605,24 @@ def effective_daily_upload_limit(config) -> int:
 
 
 def render_short(track, output_dir: Path, config) -> Path:
+    track = fullauto_story_short_track(track, config)
     shorts_config = dict(config.get("render"))
     shorts_config["subscribe_overlay"] = {"enabled": False}
     shorts = config.get("shorts")
     shorts_config["resolution"] = shorts.get("resolution", "1080x1920")
     for key in [
         "subtitle_font_size",
+        "subtitle_font_name",
         "subtitle_margin_v",
+        "subtitle_margin_h",
+        "subtitle_primary_color",
+        "subtitle_highlight_color",
+        "subtitle_outline_color",
+        "subtitle_back_color",
+        "subtitle_outline",
+        "subtitle_shadow",
+        "subtitle_border_style",
+        "subtitle_bold",
         "use_synced_subtitles",
         "zoom_max",
         "zoom_step",

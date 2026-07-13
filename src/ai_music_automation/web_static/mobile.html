@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#10273a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Phat Phap Auto" />
+    <title>Phat Phap Auto</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/mobile-icon-180.png" />
+    <link rel="manifest" href="/static/mobile.webmanifest" />
+    <link rel="stylesheet" href="/static/mobile.css?v=20260712-sleepu-v3" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">PHAT PHAP AUTOMATION</p>
+        <h1>Video Control</h1>
+      </div>
+      <button id="refreshBtn" class="iconButton" type="button" aria-label="Refresh" title="Refresh">
+        <i data-lucide="refresh-cw"></i>
+      </button>
+    </header>
+
+    <main>
+      <section class="statusCard">
+        <div>
+          <span id="connectionState" class="statusLine">Connecting</span>
+          <strong id="credentialState">Checking YouTube credentials</strong>
+        </div>
+        <select id="accountSelect" aria-label="Buddhist channel"></select>
+      </section>
+
+      <section class="section">
+        <div class="sectionHead">
+          <div>
+            <p class="eyebrow">CREATE VIDEO</p>
+            <h2>Full Auto</h2>
+          </div>
+          <span id="modelState" class="badge"></span>
+        </div>
+        <div class="assetSummary" id="assetSummary">Checking assets...</div>
+        <div class="actionGrid">
+          <button class="actionButton" data-action="start-20min" type="button">
+            <i data-lucide="clock-3"></i><span>20-Min Video</span><small id="start20minState">Create and schedule upload</small>
+          </button>
+          <button class="actionButton primary" data-action="start-long" type="button">
+            <i data-lucide="sparkles"></i><span>Long Video</span><small id="startLongState">Create, render, and upload</small>
+          </button>
+          <button class="actionButton" data-action="start" type="button">
+            <i data-lucide="clapperboard"></i><span>Shorts</span><small id="startState">Create shorts for selected channel</small>
+          </button>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="sectionHead">
+          <div>
+            <p class="eyebrow">QUEUE</p>
+            <h2>All 3 Channels</h2>
+          </div>
+        </div>
+        <div class="bulkFields">
+          <label>Shorts<input id="bulkShorts" type="number" min="0" max="10" value="0" /></label>
+          <label>20-Min<input id="bulkTwenty" type="number" min="0" max="5" value="1" /></label>
+          <label>Long<input id="bulkLong" type="number" min="0" max="3" value="0" /></label>
+        </div>
+        <button id="bulkRunBtn" class="wideButton" type="button"><i data-lucide="layers-3"></i>Run 3 Channels</button>
+      </section>
+
+      <section class="section sleepSection">
+        <div class="sectionHead">
+          <div>
+            <p class="eyebrow">ENGLISH CHANNEL</p>
+            <h2>Sleepu Stories</h2>
+          </div>
+          <span id="sleepReadyState" class="badge">Checking</span>
+        </div>
+        <div id="sleepAssetSummary" class="assetSummary">Checking story assets...</div>
+        <label>Story title or idea
+          <input id="mobileSleepTitle" type="text" placeholder="Leave empty for a fresh story" />
+        </label>
+        <label>Story direction
+          <textarea id="mobileSleepPrompt" rows="4" placeholder="Optional: character, setting, mystery, lesson, or visual direction"></textarea>
+        </label>
+        <div class="sleepFields">
+          <label>Minutes<input id="mobileSleepMinutes" type="number" min="1" max="30" value="15" /></label>
+          <label>Images<input id="mobileSleepImages" type="number" min="1" max="32" value="12" /></label>
+        </div>
+        <div class="fixedVoice"><i data-lucide="mic-2"></i><span><strong>British storyteller</strong><small>bm_lewis · fixed voice</small></span></div>
+        <button id="mobileSleepRunBtn" class="wideButton sleepRunButton" type="button"><i data-lucide="moon-star"></i>Create Sleep Story</button>
+        <p id="mobileSleepRunState" class="runState">Ready for a new full automation job.</p>
+        <div class="sectionSubhead"><strong>Latest outputs</strong><span id="mobileSleepDraftCount">0 drafts</span></div>
+        <div id="mobileSleepDrafts" class="sleepDrafts"><p class="empty">No Sleepu Stories output yet.</p></div>
+      </section>
+
+      <section class="section">
+        <div class="sectionHead">
+          <div>
+            <p class="eyebrow">MONITOR</p>
+            <h2>Jobs</h2>
+          </div>
+          <span id="jobCount" class="badge"></span>
+        </div>
+        <div id="jobOverview" class="jobOverview"></div>
+        <div id="jobs" class="jobs"><p class="empty">No jobs yet.</p></div>
+      </section>
+
+      <section class="section compact">
+        <div class="sectionHead"><h2>Upload Schedule</h2></div>
+        <div id="schedule" class="schedule"></div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" hidden></div>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="/static/mobile.js?v=20260712-balanced-profile-v6"></script>
+  </body>
+</html>

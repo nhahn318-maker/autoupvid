@@ -24,13 +24,16 @@ import json
 import smtplib
 from email.message import EmailMessage
 
+from .auto_thumbnail import ensure_auto_thumbnail, thumbnail_kind
 from .metadata import VideoMetadata
+from .config import repair_mojibake
 
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.readonly",
     "https://www.googleapis.com/auth/youtube.force-ssl",
+    "https://www.googleapis.com/auth/yt-analytics.readonly",
 ]
 MAX_THUMBNAIL_BYTES = 2 * 1024 * 1024
 UPLOAD_CHUNK_SIZE = 8 * 1024 * 1024
@@ -54,37 +57,47 @@ def _account_label_from_token_file(config: dict, token_file_name: str) -> str | 
     return None
 
 
-def send_auth_notification(token_file_name: str):
+def _load_notification_settings() -> tuple[dict[str, object] | None, dict[str, object] | None]:
     config_path = Path("config.json")
     if not config_path.exists():
-        return
+        return None, None
     try:
-        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config = repair_mojibake(json.loads(config_path.read_text(encoding="utf-8-sig")))
         notify = config.get("notifications")
-        if not notify or not notify.get("email_enabled", False):
-            return
-        
-        smtp_host = notify.get("smtp_host", "smtp.gmail.com")
-        smtp_port = int(notify.get("smtp_port", 587))
-        smtp_username = notify.get("smtp_username")
-        smtp_password = notify.get("smtp_password")
-        to_email = notify.get("to_email")
-        from_email = notify.get("from_email") or smtp_username
+        if not isinstance(notify, dict):
+            return config, None
+        return config, notify
+    except Exception:
+        return None, None
 
-        if not (smtp_username and smtp_password and to_email):
-            return
 
-        account_label = _account_label_from_token_file(config, token_file_name)
-        account_display = f"{account_label} ({token_file_name})" if account_label else token_file_name
-        subject = f"Yeu cau cap quyen YouTube - {account_display}"
-        body = (
-            f"He thong tu dong tao video yeu cau ban cap quyen truy cap YouTube.\n\n"
-            f"Kenh: {account_label or 'Khong ro'}\n"
-            f"Tep token: {token_file_name}\n"
-            f"Vui long kiem tra man hinh may chu/browser de thuc hien dang nhap va cap quyen.\n\n"
-            f"Thoi gian yeu cau: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        )
+def send_email_notification(
+    subject: str,
+    body: str,
+    *,
+    notification_type: str = "system",
+    force: bool = False,
+) -> bool:
+    config, notify = _load_notification_settings()
+    if not config or not notify or not notify.get("email_enabled", False):
+        return False
 
+    if not force:
+        if notification_type == "success" and not notify.get("notify_on_success", False):
+            return False
+        if notification_type == "failure" and not notify.get("notify_on_failure", False):
+            return False
+
+    smtp_host = notify.get("smtp_host", "smtp.gmail.com")
+    smtp_port = int(notify.get("smtp_port", 587))
+    smtp_username = notify.get("smtp_username")
+    smtp_password = notify.get("smtp_password")
+    to_email = notify.get("to_email")
+    from_email = notify.get("from_email") or smtp_username
+    if not (smtp_username and smtp_password and to_email):
+        return False
+
+    try:
         message = EmailMessage()
         message["From"] = from_email
         message["To"] = to_email
@@ -95,12 +108,31 @@ def send_auth_notification(token_file_name: str):
             smtp.starttls()
             smtp.login(smtp_username, smtp_password)
             smtp.send_message(message)
-        print(f"Da gui email thong bao yeu cau cap quyen toi {to_email} cho {account_display}")
+        print(f"Da gui email thong bao toi {to_email}: {subject}")
+        return True
     except Exception as exc:
-        print(f"Khong the gui email thong bao yeu cau cap quyen: {exc}")
+        print(f"Khong the gui email thong bao '{subject}': {exc}")
+        return False
 
 
-def get_youtube_service(credentials_file: Path, token_file: Path):
+def send_auth_notification(token_file_name: str):
+    config, _notify = _load_notification_settings()
+    if not config:
+        return
+    account_label = _account_label_from_token_file(config, token_file_name)
+    account_display = f"{account_label} ({token_file_name})" if account_label else token_file_name
+    subject = f"Yeu cau cap quyen YouTube - {account_display}"
+    body = (
+        f"He thong tu dong tao video yeu cau ban cap quyen truy cap YouTube.\n\n"
+        f"Kenh: {account_label or 'Khong ro'}\n"
+        f"Tep token: {token_file_name}\n"
+        f"Vui long kiem tra man hinh may chu/browser de thuc hien dang nhap va cap quyen.\n\n"
+        f"Thoi gian yeu cau: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+    send_email_notification(subject, body, notification_type="system", force=True)
+
+
+def _get_google_credentials(credentials_file: Path, token_file: Path):
     credentials = None
     if token_file.exists():
         credentials = Credentials.from_authorized_user_file(str(token_file), SCOPES)
@@ -124,11 +156,32 @@ def get_youtube_service(credentials_file: Path, token_file: Path):
         credentials = flow.run_local_server(port=0, access_type="offline", prompt="consent")
 
     token_file.write_text(credentials.to_json(), encoding="utf-8")
+    return credentials
+
+
+def _authorized_http(credentials):
     raw_http = httplib2.Http(timeout=YOUTUBE_HTTP_TIMEOUT)
     # Google uses 308 as the resumable-upload acknowledgement, not a redirect.
     raw_http.redirect_codes = raw_http.redirect_codes - {308}
-    http = AuthorizedHttp(credentials, http=raw_http)
+    return AuthorizedHttp(credentials, http=raw_http)
+
+
+def get_youtube_service(credentials_file: Path, token_file: Path):
+    credentials = _get_google_credentials(credentials_file, token_file)
+    http = _authorized_http(credentials)
     return build("youtube", "v3", http=http, cache_discovery=False)
+
+
+def get_youtube_analytics_service(credentials_file: Path, token_file: Path):
+    credentials = _get_google_credentials(credentials_file, token_file)
+    http = _authorized_http(credentials)
+    return build("youtubeAnalytics", "v2", http=http, cache_discovery=False)
+
+
+def get_youtube_reporting_service(credentials_file: Path, token_file: Path):
+    credentials = _get_google_credentials(credentials_file, token_file)
+    http = _authorized_http(credentials)
+    return build("youtubereporting", "v1", http=http, cache_discovery=False), credentials
 
 
 def create_token(credentials_file: Path, token_file: Path) -> Path:
@@ -245,6 +298,21 @@ def list_scheduled_publish_times(
     return scheduled
 
 
+def list_existing_video_ids(service, video_ids: set[str]) -> set[str]:
+    existing: set[str] = set()
+    ids = [video_id for video_id in sorted(video_ids) if video_id]
+    for start in range(0, len(ids), 50):
+        chunk = ids[start : start + 50]
+        if not chunk:
+            continue
+        response = service.videos().list(part="id", id=",".join(chunk)).execute()
+        for item in response.get("items", []):
+            video_id = item.get("id")
+            if video_id:
+                existing.add(str(video_id))
+    return existing
+
+
 def upload_video(
     service,
     video_path: Path,
@@ -253,6 +321,12 @@ def upload_video(
     publish_at: str | None = None,
     progress_callback: UploadProgressCallback | None = None,
 ) -> str:
+    from .media_qa import validate_media_for_upload
+
+    validate_media_for_upload(video_path)
+    is_short = thumbnail_kind(video_path) == "short"
+    if not is_short:
+        metadata = ensure_auto_thumbnail(video_path, metadata)
     status = {
         "privacyStatus": privacy_status,
         "selfDeclaredMadeForKids": metadata.made_for_kids,
@@ -304,7 +378,7 @@ def upload_video(
     if progress_callback:
         progress_callback(total_bytes, total_bytes, "processing")
     video_id = response["id"]
-    if metadata.thumbnail_path:
+    if metadata.thumbnail_path and not is_short:
         set_thumbnail(service, video_id, metadata.thumbnail_path)
     return video_id
 
