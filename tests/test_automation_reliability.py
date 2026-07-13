@@ -14,6 +14,7 @@ from ai_music_automation.agents.qa_agent import near_duplicate_image_pairs
 from ai_music_automation.agents.base import AgentContext
 from ai_music_automation.automation.artifacts import ImageArtifact
 from ai_music_automation.automation.cache import AutomationCache
+from ai_music_automation.automation.logging import AutomationLogger
 from ai_music_automation.automation.model_client import ModelRequest, OllamaClient
 from ai_music_automation.job_store import JobStore
 from ai_music_automation.media_qa import inspect_media, inspect_subtitle
@@ -248,6 +249,78 @@ class ReliabilityTests(unittest.TestCase):
         reconciled = reconcile_anomalous_positive_review(story, review, threshold=86)
         self.assertTrue(reconciled.passed)
         self.assertGreaterEqual(reconciled.score, 86)
+
+    def test_sleep_story_reviewer_reconciles_cached_positive_low_score(self) -> None:
+        class UnusedModel:
+            last_error = ""
+
+            def generate(self, _request):
+                raise AssertionError("cached review should avoid model call")
+
+        script = (
+            "If you have been carrying a tired hurt in your heart tonight, this story may help you rest. "
+            "There lived a keeper named Faelan beside an old forest path, and he wanted to collect every falling star "
+            "because he was afraid that anything beautiful would leave him. One evening he noticed a strange lantern "
+            "glowed by itself beside the river door, and he wondered why its glass showed stars moving like water. "
+            "He walked through the forest, opened the door, crossed a bridge, entered a library, and carried the lantern "
+            "into a chamber where a small map waited. Years ago, Faelan remembered his father and the letter he never sent; "
+            "he had waited by the window, wrote three careful lines, left the page inside an empty chair, and kept the apology "
+            "instead of giving it. In the balcony garden, the lantern changed when he placed the letter beside a seed, and he "
+            "realized the light had not asked him to possess the stars but to release them. He offered the map to the river, "
+            "gave the seed back to the earth, returned through the threshold, and chose to let the last bright thing travel on. "
+            "Only near the end, when the lake became dark and kind, Faelan rested, safe to rest, and drifted into sleep."
+        )
+        story = StoryArtifact(title="Faelan and the Falling Stars", prompt="", script=script)
+        with tempfile.TemporaryDirectory() as folder:
+            cache = AutomationCache(Path(folder))
+            context = AgentContext(
+                niche="sleep-story",
+                settings={
+                    "review_threshold": 86,
+                    "multi_judge_review": False,
+                    "fast_review_if_heuristic_passes": False,
+                    "ollama_model": "gemma4:e2b",
+                },
+                cache=cache,
+            )
+            cache_key = cache.key_for(
+                "story_reviewer",
+                {
+                    "niche": context.niche,
+                    "title": story.title,
+                    "script": story.script,
+                    "threshold": 86.0,
+                    "model": "gemma4:e2b",
+                    "prompt_version": 4,
+                    "multi_judge_review": False,
+                    "multi_judge_min_words": 1600,
+                    "hard_gate_version": 3,
+                },
+            )
+            cache.write_json(
+                cache_key,
+                {
+                    "score": 64,
+                    "passed": False,
+                    "notes": [
+                        "Excellent progression with strong causal continuity.",
+                        "Psychological depth is strong and concrete.",
+                        "Sleep quality is exceptional.",
+                        "Visual variety is high with distinct set pieces.",
+                    ],
+                    "revised_script": "",
+                },
+            )
+            review = StoryReviewerAgent(model_client=UnusedModel()).execute(story, context)
+        self.assertTrue(review.passed)
+        self.assertGreaterEqual(review.score, 86)
+
+    def test_automation_logger_state_lock_does_not_fail_event(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            logger = AutomationLogger(Path(folder), "run")
+            with patch("ai_music_automation.automation.logging.os.replace", side_effect=PermissionError("locked")):
+                logger.event("stage", "start")
+            self.assertTrue((Path(folder) / "run.jsonl").exists())
 
     def test_ollama_json_mode_is_sent_to_api(self) -> None:
         class Response:

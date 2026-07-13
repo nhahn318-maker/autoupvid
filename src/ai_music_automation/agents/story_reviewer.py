@@ -55,7 +55,18 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     notes=[str(item) for item in cached.get("notes", [])],
                     revised_script=str(cached.get("revised_script") or ""),
                 )
-                return combine_with_content_gate(payload, cached_review, threshold)
+                cached_review = reconcile_anomalous_positive_review(payload, cached_review, threshold)
+                cached_review = combine_with_content_gate(payload, cached_review, threshold)
+                context.cache.write_json(
+                    cache_key,
+                    {
+                        "score": cached_review.score,
+                        "passed": cached_review.passed,
+                        "notes": cached_review.notes,
+                        "revised_script": cached_review.revised_script,
+                    },
+                )
+                return cached_review
 
         if bool(context.settings.get("fast_review_if_heuristic_passes", True)):
             heuristic = heuristic_review(payload, threshold)

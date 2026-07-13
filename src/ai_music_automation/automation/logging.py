@@ -55,14 +55,20 @@ class AutomationLogger:
                     json.dump(state, handle, ensure_ascii=False, indent=2, default=str)
                     handle.flush()
                     os.fsync(handle.fileno())
+                replaced = False
                 for attempt in range(5):
                     try:
                         os.replace(temporary, self.state_path)
+                        replaced = True
                         break
                     except PermissionError:
-                        if attempt == 4:
-                            raise
                         time.sleep(0.1 * (attempt + 1))
+                if not replaced:
+                    # The JSONL log is the durable event record. On Windows the
+                    # UI or antivirus can briefly hold the state file; do not
+                    # fail a long-running render because this convenience view
+                    # could not be refreshed.
+                    pass
             finally:
                 if temporary.exists():
                     try:
