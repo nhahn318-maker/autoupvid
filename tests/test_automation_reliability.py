@@ -27,9 +27,11 @@ from ai_music_automation.web import (
 )
 from ai_music_automation.agents.story_reviewer import (
     StoryReviewerAgent,
+    StoryReview,
     build_review_prompt,
     content_gate_violations,
     parse_review_response,
+    reconcile_anomalous_positive_review,
 )
 from ai_music_automation.automation.artifacts import StoryArtifact
 
@@ -215,6 +217,37 @@ class ReliabilityTests(unittest.TestCase):
         self.assertIn('"revised_script": ""', prompt)
         self.assertIn("Do not rewrite the script", prompt)
         self.assertNotIn("only include a full revised script", prompt)
+
+    def test_sleep_story_reviewer_reconciles_positive_low_score(self) -> None:
+        script = (
+            "If you have been carrying a tired hurt in your heart tonight, this story may help you rest. "
+            "There lived a keeper named Faelan beside an old forest path, and he wanted to collect every falling star "
+            "because he was afraid that anything beautiful would leave him. One evening he noticed a strange lantern "
+            "glowed by itself beside the river door, and he wondered why its glass showed stars moving like water. "
+            "He walked through the forest, opened the door, crossed a bridge, entered a library, and carried the lantern "
+            "into a chamber where a small map waited. Years ago, Faelan remembered his father and the letter he never sent; "
+            "he had waited by the window, wrote three careful lines, left the page inside an empty chair, and kept the apology "
+            "instead of giving it. In the balcony garden, the lantern changed when he placed the letter beside a seed, and he "
+            "realized the light had not asked him to possess the stars but to release them. He offered the map to the river, "
+            "gave the seed back to the earth, returned through the threshold, and chose to let the last bright thing travel on. "
+            "Only near the end, when the lake became dark and kind, Faelan rested, safe to rest, and drifted into sleep."
+        )
+        story = StoryArtifact(title="Faelan and the Falling Stars", prompt="", script=script)
+        self.assertFalse(content_gate_violations(script))
+        review = StoryReview(
+            score=76,
+            passed=False,
+            notes=[
+                "Excellent progression: Description -> Discovery -> Small Mystery -> Discovery -> Memory -> New Room/Place -> New Object -> Another Revelation -> Kind Choice -> Sleep Resolution.",
+                "The psychological arc is strong and concrete.",
+                "Sleep quality is excellent due to the calm tone.",
+                "Visual variety is high with distinct set pieces.",
+                "Excellent causal continuity and visible emotional payoff.",
+            ],
+        )
+        reconciled = reconcile_anomalous_positive_review(story, review, threshold=78)
+        self.assertTrue(reconciled.passed)
+        self.assertGreaterEqual(reconciled.score, 78)
 
     def test_ollama_json_mode_is_sent_to_api(self) -> None:
         class Response:

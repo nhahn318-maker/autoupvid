@@ -39,10 +39,10 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     "script": payload.script,
                     "threshold": threshold,
                     "model": context.settings.get("ollama_model") or context.settings.get("model"),
-                    "prompt_version": context.settings.get("review_prompt_version") or 3,
+                    "prompt_version": context.settings.get("review_prompt_version") or 4,
                     "multi_judge_review": bool(context.settings.get("multi_judge_review", True)),
                     "multi_judge_min_words": int(context.settings.get("multi_judge_min_words") or 1600),
-                    "hard_gate_version": 2,
+                    "hard_gate_version": 3,
                 },
             )
             cached = context.cache.read_json(cache_key)
@@ -150,6 +150,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     revised_script=review.revised_script,
                 )
 
+        review = reconcile_anomalous_positive_review(payload, review, threshold)
         review = combine_with_content_gate(payload, review, threshold)
 
         if context.cache and cache_key:
@@ -300,6 +301,60 @@ def combine_with_content_gate(story: StoryArtifact, review: StoryReview, thresho
         score=combined_score,
         passed=False,
         notes=notes[:20],
+        revised_script=review.revised_script,
+        valid_response=review.valid_response,
+    )
+
+
+def reconcile_anomalous_positive_review(
+    story: StoryArtifact,
+    review: StoryReview,
+    threshold: float,
+) -> StoryReview:
+    """Correct self-contradictory model reviews without lowering hard gates.
+
+    Local LLM judges sometimes return a low numeric score while every written
+    note says the story is excellent. This only upgrades near-threshold reviews
+    when deterministic gates and heuristic checks also agree the story is solid.
+    """
+    if review.passed or review.score < threshold - 12:
+        return review
+    if content_gate_violations(story.script):
+        return review
+
+    heuristic = heuristic_review(story, threshold)
+    if not heuristic.passed:
+        return review
+
+    notes_text = " ".join(review.notes).lower()
+    negative_markers = (
+        "lack", "lacks", "missing", "weak", "thin", "repetitive", "too generic",
+        "not enough", "no clear", "fails", "failed", "below", "insufficient",
+        "problem", "issue", "needs", "should", "must improve", "does not",
+    )
+    if any(marker in notes_text for marker in negative_markers):
+        return review
+
+    positive_markers = (
+        "excellent", "strong", "successful", "smooth", "high", "clear",
+        "distinct", "payoff", "causal", "progression", "variety", "resolved",
+    )
+    positive_hits = sum(1 for marker in positive_markers if marker in notes_text)
+    if positive_hits < 4 or len(review.notes) < 4:
+        return review
+
+    adjusted_score = max(float(threshold), review.score)
+    note = (
+        "Adjusted anomalous low numeric score: written review notes were strongly positive "
+        "and deterministic story gates passed."
+    )
+    notes = list(review.notes)
+    if note not in notes:
+        notes.append(note)
+    return StoryReview(
+        score=adjusted_score,
+        passed=True,
+        notes=notes,
         revised_script=review.revised_script,
         valid_response=review.valid_response,
     )

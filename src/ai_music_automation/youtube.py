@@ -43,6 +43,14 @@ YOUTUBE_HTTP_TIMEOUT = 120
 UploadProgressCallback = Callable[[int, int, str], None]
 
 
+def safe_console_print(message: object) -> None:
+    try:
+        print(message)
+    except UnicodeEncodeError:
+        text = str(message).encode("ascii", errors="replace").decode("ascii")
+        print(text)
+
+
 def _account_label_from_token_file(config: dict, token_file_name: str) -> str | None:
     accounts = config.get("accounts")
     if not isinstance(accounts, dict):
@@ -108,10 +116,10 @@ def send_email_notification(
             smtp.starttls()
             smtp.login(smtp_username, smtp_password)
             smtp.send_message(message)
-        print(f"Da gui email thong bao toi {to_email}: {subject}")
+        safe_console_print(f"Da gui email thong bao toi {to_email}: {subject}")
         return True
     except Exception as exc:
-        print(f"Khong the gui email thong bao '{subject}': {exc}")
+        safe_console_print(f"Khong the gui email thong bao '{subject}': {exc}")
         return False
 
 
@@ -372,7 +380,7 @@ def upload_video(
             delay = min(2**retry, 60)
             if progress_callback:
                 progress_callback(sent_bytes, total_bytes, f"retry {retry}/{MAX_UPLOAD_RETRIES} in {delay}s")
-            print(f"Upload interrupted ({exc}); retry {retry}/{MAX_UPLOAD_RETRIES} in {delay}s.")
+            safe_console_print(f"Upload interrupted ({exc}); retry {retry}/{MAX_UPLOAD_RETRIES} in {delay}s.")
             time_module.sleep(delay)
 
     if progress_callback:
@@ -389,7 +397,7 @@ def set_thumbnail(service, video_id: str, thumbnail_path: Path, raise_errors: bo
         message = f"Thumbnail is still over 2MB after compression: {thumbnail_path.name}"
         if raise_errors:
             raise ValueError(message)
-        print(message)
+        safe_console_print(message)
         return False
 
     media = MediaFileUpload(str(thumbnail_path))
@@ -398,7 +406,7 @@ def set_thumbnail(service, video_id: str, thumbnail_path: Path, raise_errors: bo
     except Exception as exc:  # noqa: BLE001 - do not fail an already uploaded video.
         if raise_errors:
             raise
-        print(f"Thumbnail failed for {video_id}: {exc}")
+        safe_console_print(f"Thumbnail failed for {video_id}: {exc}")
         return False
     return True
 
@@ -413,7 +421,7 @@ def execute_with_retries(callable_execute):
                 raise
             retry += 1
             delay = min(2**retry, 60)
-            print(f"YouTube request interrupted ({exc}); retry {retry}/{MAX_UPLOAD_RETRIES} in {delay}s.")
+            safe_console_print(f"YouTube request interrupted ({exc}); retry {retry}/{MAX_UPLOAD_RETRIES} in {delay}s.")
             time_module.sleep(delay)
 
 
