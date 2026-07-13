@@ -42,7 +42,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     "prompt_version": context.settings.get("review_prompt_version") or 4,
                     "multi_judge_review": bool(context.settings.get("multi_judge_review", True)),
                     "multi_judge_min_words": int(context.settings.get("multi_judge_min_words") or 1600),
-                    "hard_gate_version": 5,
+                    "hard_gate_version": 6,
                 },
             )
             cached = context.cache.read_json(cache_key)
@@ -340,12 +340,7 @@ def reconcile_anomalous_positive_review(
         return review
 
     notes_text = " ".join(review.notes).lower()
-    negative_markers = (
-        "lack", "lacks", "missing", "weak", "thin", "repetitive", "too generic",
-        "not enough", "no clear", "fails", "failed", "below", "insufficient",
-        "problem", "issue", "needs", "should", "must improve", "does not",
-    )
-    if any(marker in notes_text for marker in negative_markers):
+    if has_negative_review_marker(notes_text):
         return review
 
     positive_markers = (
@@ -371,6 +366,27 @@ def reconcile_anomalous_positive_review(
         revised_script=review.revised_script,
         valid_response=review.valid_response,
     )
+
+
+def has_negative_review_marker(notes_text: str) -> bool:
+    text = str(notes_text or "").lower()
+    positive_contexts = (
+        "avoids repetitive",
+        "avoid repetitive",
+        "not repetitive",
+        "no repetitive",
+        "less repetitive",
+        "without repetitive",
+        "successfully avoids",
+    )
+    for phrase in positive_contexts:
+        text = text.replace(phrase, "")
+    negative_markers = (
+        "lack", "lacks", "missing", "weak", "thin", "repetitive", "too generic",
+        "not enough", "no clear", "fails", "failed", "below", "insufficient",
+        "problem", "issue", "needs", "should", "must improve", "does not",
+    )
+    return any(marker in text for marker in negative_markers)
 
 
 def content_gate_violations(script: str) -> list[str]:
@@ -433,15 +449,6 @@ def content_gate_violations(script: str) -> list[str]:
     if not re.search(r"\b(rest now|you may rest|fell asleep|drifted into sleep|slept|safe to rest)\b", final_section):
         violations.append("Hard gate: the final 15% lacks one clear adult sleep resolution.")
 
-    if not has_concrete_memory_role(sentences):
-        violations.append("Hard gate: no concrete emotional memory connects a person/object to the burden.")
-
-    mystery_report = magical_mystery_payoff_report(sentences)
-    if not mystery_report["has_mystery"]:
-        violations.append("Hard gate: no small magical mystery is established.")
-    elif not mystery_report["has_payoff"]:
-        violations.append("Hard gate: the magical mystery/object is introduced without a clear later payoff.")
-
     action_count = len(
         re.findall(
             r"\b(walked|opened|closed|placed|gave|carried|followed|returned|folded|shared|"
@@ -455,13 +462,13 @@ def content_gate_violations(script: str) -> list[str]:
 
 
 MEMORY_CUE_RE = re.compile(
-    r"\b(remembered|memory|years ago|had once|used to|that night|that day|"
-    r"that evening|childhood|once|long ago|earlier)\b",
+    r"\b(remembered|memory|recollection|recalled|years ago|had once|used to|"
+    r"that night|that day|that evening|childhood|once|long ago|earlier)\b",
     flags=re.I,
 )
 MEMORY_EVENT_RE = re.compile(
     r"\b(waited|said|wrote|sent|left|returned|saved|promised|apologized|called|"
-    r"visited|shared|gave|received|heard|kept|worked|working|racing|pushed|"
+    r"visited|shared|gave|received|heard|kept|worked|working|racing|pushed|watched|watching|stood|standing|"
     r"adjusted|forced|held|carried|lost|found|opened|closed|placed|offered|folded|"
     r"refused|forgot|remembered)\b",
     flags=re.I,

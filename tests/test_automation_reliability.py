@@ -295,7 +295,7 @@ class ReliabilityTests(unittest.TestCase):
                     "prompt_version": 4,
                     "multi_judge_review": False,
                     "multi_judge_min_words": 1600,
-                    "hard_gate_version": 5,
+                    "hard_gate_version": 6,
                 },
             )
             cache.write_json(
@@ -315,6 +315,38 @@ class ReliabilityTests(unittest.TestCase):
             review = StoryReviewerAgent(model_client=UnusedModel()).execute(story, context)
         self.assertTrue(review.passed)
         self.assertGreaterEqual(review.score, 86)
+
+    def test_sleep_story_reviewer_reconciles_positive_passed_false_without_false_negative_words(self) -> None:
+        script = (
+            "If tomorrow has felt too uncertain tonight, this story may help your mind rest. "
+            "Silas lived beside a valley library and carried a heavy atlas because he wanted every path to be certain. "
+            "He opened the atlas, noticed a glowing page, walked through a moonlit arch, entered an archive, "
+            "crossed a bridge, and found a brass scroll beside a quiet balcony. "
+            "Standing there, he recalled one clear night when he had watched the stars turn slowly and understood that "
+            "he had once trusted the sky without owning it. The scroll changed into a river-map when he placed it down, "
+            "and Silas realized tomorrow was not a locked answer but a path that could unfold. "
+            "He touched the scroll, chose to release the need to control each road, returned through the archive, "
+            "rested beside the warm lamp, safe to rest, and drifted into sleep."
+        )
+        story = StoryArtifact(title="Silas and Tomorrow's Map", prompt="", script=script)
+        review = StoryReview(
+            score=88,
+            passed=False,
+            notes=[
+                "Excellent progression with strong causal continuity.",
+                "The psychological core is strong and concrete.",
+                "The tone successfully avoids repetitive mood words.",
+                "Visual variety is high with distinct set pieces.",
+                "The story delivers a clear emotional payoff.",
+            ],
+        )
+        with patch(
+            "ai_music_automation.agents.story_reviewer.heuristic_review",
+            return_value=StoryReview(score=83, passed=False, notes=["Heuristic sanity check only."]),
+        ):
+            reconciled = reconcile_anomalous_positive_review(story, review, 86)
+        self.assertTrue(reconciled.passed)
+        self.assertGreaterEqual(reconciled.score, 86)
 
     def test_sleep_story_writer_repairs_truncated_clockmaker_ending(self) -> None:
         script = (
@@ -427,7 +459,7 @@ class ReliabilityTests(unittest.TestCase):
         self.assertIn("TITLE:", sanitized)
         self.assertIn("SCRIPT:", sanitized)
 
-    def test_sleep_story_hard_gate_blocks_early_ending_and_missing_payoff(self) -> None:
+    def test_sleep_story_hard_gate_blocks_early_ending_but_not_creative_object_roles(self) -> None:
         script = (
             "If you have been tired tonight, this story may help your heart rest. "
             "Elias found a strange lantern beside the railway and wondered why it glowed. "
@@ -438,7 +470,7 @@ class ReliabilityTests(unittest.TestCase):
         )
         violations = content_gate_violations(script)
         self.assertTrue(any("sleep ending appears" in item for item in violations))
-        self.assertTrue(any("without a clear later payoff" in item for item in violations))
+        self.assertFalse(any("payoff" in item for item in violations))
 
 
 if __name__ == "__main__":
