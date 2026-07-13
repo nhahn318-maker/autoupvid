@@ -235,7 +235,7 @@ class ReliabilityTests(unittest.TestCase):
         story = StoryArtifact(title="Faelan and the Falling Stars", prompt="", script=script)
         self.assertFalse(content_gate_violations(script))
         review = StoryReview(
-            score=76,
+            score=64,
             passed=False,
             notes=[
                 "Excellent progression: Description -> Discovery -> Small Mystery -> Discovery -> Memory -> New Room/Place -> New Object -> Another Revelation -> Kind Choice -> Sleep Resolution.",
@@ -245,9 +245,9 @@ class ReliabilityTests(unittest.TestCase):
                 "Excellent causal continuity and visible emotional payoff.",
             ],
         )
-        reconciled = reconcile_anomalous_positive_review(story, review, threshold=78)
+        reconciled = reconcile_anomalous_positive_review(story, review, threshold=86)
         self.assertTrue(reconciled.passed)
-        self.assertGreaterEqual(reconciled.score, 78)
+        self.assertGreaterEqual(reconciled.score, 86)
 
     def test_ollama_json_mode_is_sent_to_api(self) -> None:
         class Response:

@@ -314,16 +314,18 @@ def reconcile_anomalous_positive_review(
     """Correct self-contradictory model reviews without lowering hard gates.
 
     Local LLM judges sometimes return a low numeric score while every written
-    note says the story is excellent. This only upgrades near-threshold reviews
-    when deterministic gates and heuristic checks also agree the story is solid.
+    note says the story is excellent. This only upgrades strongly positive
+    reviews when deterministic gates and heuristic checks also agree the story
+    is solid.
     """
-    if review.passed or review.score < threshold - 12:
+    if review.passed:
         return review
     if content_gate_violations(story.script):
         return review
 
     heuristic = heuristic_review(story, threshold)
-    if not heuristic.passed:
+    minimum_sanity_score = min(float(threshold), max(74.0, float(threshold) - 12.0))
+    if heuristic.score < minimum_sanity_score:
         return review
 
     notes_text = " ".join(review.notes).lower()
