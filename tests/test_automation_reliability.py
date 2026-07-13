@@ -335,7 +335,7 @@ class ReliabilityTests(unittest.TestCase):
             notes=[
                 "Excellent progression with strong causal continuity.",
                 "The psychological core is strong and concrete.",
-                "The tone successfully avoids repetitive mood words.",
+                "The tone succeeds without relying on repetitive mood words.",
                 "Visual variety is high with distinct set pieces.",
                 "The story delivers a clear emotional payoff.",
             ],

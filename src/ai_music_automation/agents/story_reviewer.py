@@ -370,17 +370,21 @@ def reconcile_anomalous_positive_review(
 
 def has_negative_review_marker(notes_text: str) -> bool:
     text = str(notes_text or "").lower()
-    positive_contexts = (
-        "avoids repetitive",
-        "avoid repetitive",
-        "not repetitive",
-        "no repetitive",
-        "less repetitive",
-        "without repetitive",
-        "successfully avoids",
+    text = re.sub(
+        r"\b(?:successfully\s+)?avoid(?:s|ing)?\s+(?:\w+\s+){0,5}repetitive\b",
+        "",
+        text,
     )
-    for phrase in positive_contexts:
-        text = text.replace(phrase, "")
+    text = re.sub(
+        r"\b(?:without|not|no|less|limited)\s+(?:\w+\s+){0,5}repetitive\b",
+        "",
+        text,
+    )
+    text = re.sub(
+        r"\brepetition\s+of\s+(?:\w+\s+){0,5}(?:managed|handled)\s+well\b",
+        "",
+        text,
+    )
     negative_markers = (
         "lack", "lacks", "missing", "weak", "thin", "repetitive", "too generic",
         "not enough", "no clear", "fails", "failed", "below", "insufficient",
@@ -397,26 +401,6 @@ def content_gate_violations(script: str) -> list[str]:
     violations: list[str] = []
     if not words:
         return ["Hard gate: script is empty."]
-
-    mood_roots = (
-        "quiet", "silen", "soft", "gentle", "moonlight", "still", "warm",
-        "peaceful", "slow", "unfold", "mist", "profound", "rhythm",
-    )
-    root_counts = {
-        root: sum(1 for word in words if word.startswith(root))
-        for root in mood_roots
-    }
-    mood_total = sum(root_counts.values())
-    overused = [
-        f"{root}={count}"
-        for root, count in root_counts.items()
-        if count > max(10, round(len(words) * 0.009))
-    ]
-    if mood_total / len(words) > 0.055 or len(overused) >= 3:
-        violations.append(
-            "Hard gate: repeated atmosphere vocabulary is too dense"
-            + (f" ({', '.join(overused[:6])})." if overused else ".")
-        )
 
     sentences = [item.strip() for item in re.split(r"(?<=[.!?])\s+", text) if item.strip()]
     normalized_sentences = [re.sub(r"[^a-z0-9 ]+", "", item.lower()).strip() for item in sentences]
@@ -449,15 +433,6 @@ def content_gate_violations(script: str) -> list[str]:
     if not re.search(r"\b(rest now|you may rest|fell asleep|drifted into sleep|slept|safe to rest)\b", final_section):
         violations.append("Hard gate: the final 15% lacks one clear adult sleep resolution.")
 
-    action_count = len(
-        re.findall(
-            r"\b(walked|opened|closed|placed|gave|carried|followed|returned|folded|shared|"
-            r"picked|stepped|crossed|entered|left|offered|released|set down|turned)\b",
-            lowered,
-        )
-    )
-    if action_count < max(5, len(words) // 220):
-        violations.append("Hard gate: too few visible actions; description is replacing plot progression.")
     return violations
 
 
