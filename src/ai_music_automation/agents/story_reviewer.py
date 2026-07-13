@@ -42,7 +42,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     "prompt_version": context.settings.get("review_prompt_version") or 4,
                     "multi_judge_review": bool(context.settings.get("multi_judge_review", True)),
                     "multi_judge_min_words": int(context.settings.get("multi_judge_min_words") or 1600),
-                    "hard_gate_version": 3,
+                    "hard_gate_version": 4,
                 },
             )
             cached = context.cache.read_json(cache_key)
@@ -434,8 +434,8 @@ def content_gate_violations(script: str) -> list[str]:
         violations.append("Hard gate: the final 15% lacks one clear adult sleep resolution.")
 
     memory_cues = r"\b(remembered|memory|years ago|had once|used to|that night|that day|that evening|childhood)\b"
-    concrete_cues = r"\b(letter|cup|promise|apology|mother|father|friend|sister|brother|news|chair|voice|photograph|ticket|meal|conversation|goodbye)\b"
-    memory_event_cues = r"\b(waited|said|wrote|sent|never sent|left|returned|saved|promised|apologized|called|visited|shared|gave|received|heard|kept|did not come)\b"
+    concrete_cues = r"\b(letter|cup|promise|apology|mother|father|friend|sister|brother|news|chair|voice|photograph|ticket|meal|conversation|goodbye|mechanism|gear|gears|clock|watch|pendulum|weight|workshop|order)\b"
+    memory_event_cues = r"\b(waited|said|wrote|sent|never sent|left|returned|saved|promised|apologized|called|visited|shared|gave|received|heard|kept|did not come|worked|working|racing|pushed|adjusted|forced|held|carried)\b"
     concrete_memory = any(
         re.search(memory_cues, sentence, flags=re.I)
         and re.search(concrete_cues, sentence, flags=re.I)
@@ -448,13 +448,14 @@ def content_gate_violations(script: str) -> list[str]:
     mystery_index = next(
         (
             index for index, sentence in enumerate(sentences)
-            if re.search(r"\b(mystery|secret|strange|unfamiliar|wondered|question|why|appeared without|glowed by itself)\b", sentence, flags=re.I)
+            if re.search(r"\b(mystery|secret|strange|unfamiliar|wondered|question|why|appeared without|glowed by itself|hesitated|yielding|unfolded|revealed|shimmered|pulsed)\b", sentence, flags=re.I)
         ),
         None,
     )
     recurring_objects = (
         "lantern", "letter", "book", "key", "stone", "clock", "cup", "bell",
         "map", "box", "ticket", "photograph", "scarf", "boat", "seed",
+        "mechanism", "gear", "gears", "weight", "watch", "pendulum",
     )
     if mystery_index is None:
         violations.append("Hard gate: no small magical mystery is established.")
@@ -642,10 +643,10 @@ def longform_progression_score(script: str) -> tuple[int, list[str]]:
     checks = [
         ("description/setup", r"\b(lived|worked|kept|tended|sat within|stood in|there was|there lived)\b"),
         ("discovery", r"\b(discovered|noticed|found|heard|saw|appeared|glowed|opened)\b"),
-        ("small mystery", r"\b(mystery|question|strange|unfamiliar|unknown|why|curiosity|wondered|secret)\b"),
-        ("concrete memory", r"\b(memory|remembered|promise|letter|apology|window|chair|cup|conversation|not kept)\b"),
-        ("new room/place", r"\b(room|chamber|hall|garden|library|balcony|bridge|market|shore|greenhouse|railway|archive|valley|door|threshold)\b"),
-        ("new object/object change", r"\b(book|key|letter|lantern|map|seed|bell|cup|compass|page|door|object|changed|transformed|folded|opened)\b"),
+        ("small mystery", r"\b(mystery|question|strange|unfamiliar|unknown|why|curiosity|wondered|secret|hesitated|yielding|unfolded|revealed)\b"),
+        ("concrete memory", r"\b(memory|remembered|promise|letter|apology|window|chair|cup|conversation|not kept|mechanism|gears|clock|watch|weight|workshop|order|exhaustion)\b"),
+        ("new room/place", r"\b(room|chamber|hall|garden|library|balcony|bridge|market|shore|greenhouse|railway|archive|valley|door|threshold|inn|clearing|mountain|workshop|path|bench)\b"),
+        ("new object/object change", r"\b(book|key|letter|lantern|map|seed|bell|cup|compass|page|door|object|changed|transformed|folded|opened|clock|mechanism|gear|gears|weight|watch|pendulum)\b"),
         ("another revelation", r"\b(realized|understood|revealed|learned|recognized|saw that|discovered that)\b"),
         ("kind choice", r"\b(chose|decided|offered|gave|placed|released|folded|opened|shared|set down|let go)\b"),
         ("sleep resolution", r"\b(rest now|you may rest|sleep|slept|rested|safe|dream)\b"),
@@ -687,6 +688,12 @@ def distinct_set_piece_count(lowered: str) -> int:
         "river",
         "sea",
         "path",
+        "inn",
+        "clearing",
+        "mountain",
+        "workshop",
+        "bench",
+        "hall",
     }
     return sum(1 for place in places if re.search(rf"\b{re.escape(place)}\b", lowered))
 
@@ -705,8 +712,11 @@ def has_concrete_memory(script: str) -> bool:
         re.search(
             r"\b(unsent letter|letter|waiting by the window|waited by the window|saved cup|teacup|"
             r"promise|promised|apology|sorry|came back|return|returned|chair|empty chair|"
-            r"left behind|never sent|never spoken|not kept)\b",
+            r"left behind|never sent|never spoken|not kept|years ago.*mechanism|remembered.*mechanism|"
+            r"remembered.*gears|remembered.*clock|exhaustion.*satisfaction|worked.*mechanism|"
+            r"racing against.*order)\b",
             lowered,
+            flags=re.S,
         )
     )
 

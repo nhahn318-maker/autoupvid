@@ -19,6 +19,7 @@ from ai_music_automation.automation.model_client import ModelRequest, OllamaClie
 from ai_music_automation.job_store import JobStore
 from ai_music_automation.media_qa import inspect_media, inspect_subtitle
 from ai_music_automation.story_before_sleep import infer_character_gender_label
+from ai_music_automation.agents.story_writer import repair_complete_sleep_story_script
 from ai_music_automation.youtube_reporting import aggregate_reporting_csv, reporting_windows
 from ai_music_automation.web import (
     analyze_long_script_duplicates,
@@ -294,7 +295,7 @@ class ReliabilityTests(unittest.TestCase):
                     "prompt_version": 4,
                     "multi_judge_review": False,
                     "multi_judge_min_words": 1600,
-                    "hard_gate_version": 3,
+                    "hard_gate_version": 4,
                 },
             )
             cache.write_json(
@@ -314,6 +315,24 @@ class ReliabilityTests(unittest.TestCase):
             review = StoryReviewerAgent(model_client=UnusedModel()).execute(story, context)
         self.assertTrue(review.passed)
         self.assertGreaterEqual(review.score, 86)
+
+    def test_sleep_story_writer_repairs_truncated_clockmaker_ending(self) -> None:
+        script = (
+            "If you have been carrying the heavy weight of hurried expectations, allow yourself to settle into a mountain morning. "
+            "Elias was a man who lived high in the mountains, where he repaired clocks in a stone inn. "
+            "One morning, the great clock hesitated and the brass mechanism unfolded a strange silver light. "
+            "Elias opened the clock case, carried a small tool from the workshop, and followed the mist from the main hall "
+            "to a hidden clearing beside a stone bench. "
+            "He held a worn brass weight and remembered a specific moment from his past: years ago, he had been working on "
+            "a particularly intricate mechanism, racing against the demands of an order until exhaustion blurred his vision. "
+            "The clock changed again when he returned to the inn, and Elias realized the mechanism was not asking for control, "
+            "but patience. He chose to stop forcing it. Elias placed the brass weight down and let the "
+            "relentless pressure of measurement dissolve into the"
+        )
+        repaired = repair_complete_sleep_story_script(script, "The Clockmaker's Secret")
+        self.assertRegex(repaired, r"[.!?]$")
+        self.assertIn("You may rest now", repaired)
+        self.assertFalse(content_gate_violations(repaired))
 
     def test_automation_logger_state_lock_does_not_fail_event(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

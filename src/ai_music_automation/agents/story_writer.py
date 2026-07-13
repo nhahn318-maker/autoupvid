@@ -35,17 +35,31 @@ class StoryWriterAgent(BaseAgent[StoryWriterInput, StoryArtifact]):
                     "target_minutes": payload.target_minutes,
                     "reference_style": payload.reference_style,
                     "model": context.settings.get("ollama_model") or context.settings.get("model"),
-                    "prompt_version": context.settings.get("story_prompt_version") or 10,
+                    "prompt_version": context.settings.get("story_prompt_version") or 11,
                 },
             )
             cached = context.cache.read_json(cache_key)
             if cached and cached.get("script"):
+                cached_script = repair_complete_sleep_story_script(
+                    polish_adult_sleep_story_script(str(cached.get("script") or "")),
+                    str(cached.get("title") or payload.title),
+                )
+                if cached_script != str(cached.get("script") or ""):
+                    context.cache.write_json(
+                        cache_key,
+                        {
+                            **cached,
+                            "script": cached_script,
+                            "hook": first_sentence(cached_script),
+                            "ending": last_sentence(cached_script),
+                        },
+                    )
                 return StoryArtifact(
                     title=str(cached.get("title") or payload.title),
                     prompt=str(cached.get("prompt") or payload.prompt),
-                    script=str(cached.get("script") or ""),
-                    hook=str(cached.get("hook") or ""),
-                    ending=str(cached.get("ending") or ""),
+                    script=cached_script,
+                    hook=first_sentence(cached_script),
+                    ending=last_sentence(cached_script),
                     lesson=str(cached.get("lesson") or ""),
                 )
 
@@ -66,7 +80,10 @@ class StoryWriterAgent(BaseAgent[StoryWriterInput, StoryArtifact]):
             target_words = story_target_word_count(payload.target_minutes)
             if len(script.split()) < max(500, int(target_words * 0.75)):
                 script = expand_long_story_tail(self.model_client, payload, context, script, target_words)
-        script = polish_adult_sleep_story_script(trim_script_to_target(script, payload.target_minutes))
+        script = repair_complete_sleep_story_script(
+            polish_adult_sleep_story_script(trim_script_to_target(script, payload.target_minutes)),
+            payload.title,
+        )
         if len(script.split()) < 80:
             script = fallback_sleep_story(payload.title, payload.target_minutes)
 
@@ -468,6 +485,95 @@ def polish_adult_sleep_story_script(script: str) -> str:
     for pattern, replacement in replacements.items():
         polished = re.sub(pattern, replacement, polished)
     return keep_only_final_sleep_signoff(polished).strip()
+
+
+def repair_complete_sleep_story_script(script: str, title: str = "") -> str:
+    """Patch local-model truncation without changing the story's core plot.
+
+    Gemma occasionally stops mid-clause near the ending. A bedtime story should
+    never reach review without a complete final sentence and one adult sleep
+    resolution, so this trims dangling fragments and appends a short
+    story-specific landing when needed.
+    """
+    repaired = trim_dangling_paragraphs(script)
+    if final_section_has_sleep_resolution(repaired):
+        return repaired.strip()
+    name = infer_main_character_name(repaired) or "the traveler"
+    object_name = infer_symbolic_object(repaired)
+    object_phrase = f"the {object_name}" if object_name else "the small object"
+    ending = (
+        f"At last, {name} placed {object_phrase} where the first patient light could find it, "
+        "and let both hands rest open in their lap. The lesson did not arrive as a lecture, "
+        "but as a simple ease in the body: not every precious moment needed to be measured, "
+        "kept, or hurried into shape. The world could breathe at its own pace, and so could "
+        f"{name}. You may rest now, safe in the quiet light, while the story settles softly into sleep."
+    )
+    return f"{repaired.rstrip()}\n\n{ending}".strip()
+
+
+def trim_dangling_paragraphs(script: str) -> str:
+    paragraphs: list[str] = []
+    for raw in re.split(r"\n\s*\n", (script or "").strip()):
+        paragraph = raw.strip()
+        if not paragraph:
+            continue
+        if re.search(r"[.!?][\"')\]]?$", paragraph):
+            paragraphs.append(paragraph)
+            continue
+        matches = list(re.finditer(r"[.!?][\"')\]]?", paragraph))
+        if matches:
+            paragraph = paragraph[: matches[-1].end()].strip()
+            if paragraph:
+                paragraphs.append(paragraph)
+    return "\n\n".join(paragraphs).strip()
+
+
+def final_section_has_sleep_resolution(script: str) -> bool:
+    lowered = (script or "").lower()
+    final_section = lowered[int(len(lowered) * 0.85) :]
+    return bool(
+        re.search(
+            r"\b(rest now|you may rest|safe to rest|settles? .*? into sleep|"
+            r"drift(?:ed|ing)? .*? sleep|fell asleep|slept)\b",
+            final_section,
+        )
+    )
+
+
+def infer_main_character_name(script: str) -> str:
+    for pattern in (
+        r"\b(?:named|called)\s+([A-Z][a-z]{2,})\b",
+        r"\bthere lived\s+(?:a\s+\w+\s+)?(?:named\s+)?([A-Z][a-z]{2,})\b",
+        r"\b([A-Z][a-z]{2,})\s+(?:was|lived|sat|stood|walked|held|carried)\b",
+    ):
+        match = re.search(pattern, script or "")
+        if match:
+            return match.group(1)
+    return ""
+
+
+def infer_symbolic_object(script: str) -> str:
+    candidates = [
+        "brass weight",
+        "clock",
+        "mechanism",
+        "lantern",
+        "letter",
+        "book",
+        "key",
+        "seed",
+        "cup",
+        "bell",
+        "map",
+        "watch",
+        "pendulum",
+    ]
+    lowered = (script or "").lower()
+    scored = [(lowered.count(item), item) for item in candidates]
+    scored = [item for item in scored if item[0] > 0]
+    if not scored:
+        return ""
+    return sorted(scored, reverse=True)[0][1]
 
 
 def keep_only_final_sleep_signoff(script: str) -> str:
