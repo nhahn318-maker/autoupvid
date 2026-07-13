@@ -150,6 +150,28 @@ class ReliabilityTests(unittest.TestCase):
         )
         self.assertGreater(long_chapter_overlap_ratio(current, previous), 0.30)
 
+    def test_sleep_story_review_preserves_component_scores(self) -> None:
+        response = json.dumps(
+            {
+                "score": 84,
+                "passed": True,
+                "subscores": {
+                    "story_structure": 88,
+                    "retention": 72,
+                    "psychology": 90,
+                    "sleep_quality": 94,
+                    "visual_variety": 80,
+                    "ai_repetition": 68,
+                },
+                "notes": ["Good but could use stronger curiosity beats."],
+                "revised_script": "",
+            }
+        )
+        review = parse_review_response(response, 82)
+        self.assertTrue(review.passed)
+        self.assertEqual(review.subscores["retention"], 72)
+        self.assertIn("Weakest: ai_repetition=68, retention=72", review.notes[0])
+
     def test_long_continuation_prompt_is_compact_enough_for_local_model(self) -> None:
         original = "YÊU CẦU CHƯƠNG " + ("nội dung yêu cầu " * 900)
         current = "Mở đầu chương. " + ("Một ví dụ đời thường giúp người nghe hiểu rõ hơn. " * 350)
@@ -292,7 +314,7 @@ class ReliabilityTests(unittest.TestCase):
                     "script": story.script,
                     "threshold": 86.0,
                     "model": "gemma4:e2b",
-                    "prompt_version": 4,
+                    "prompt_version": 5,
                     "multi_judge_review": False,
                     "multi_judge_min_words": 1600,
                     "hard_gate_version": 6,
@@ -333,6 +355,7 @@ class ReliabilityTests(unittest.TestCase):
             score=88,
             passed=False,
             notes=[
+                "Component scores: ai_repetition=91, retention=78. Weakest: retention=78.",
                 "Excellent progression with strong causal continuity.",
                 "The psychological core is strong and concrete.",
                 "The tone succeeds without relying on repetitive mood words.",

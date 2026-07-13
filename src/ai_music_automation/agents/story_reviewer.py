@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from difflib import SequenceMatcher
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from .base import AgentContext, BaseAgent
@@ -18,6 +18,7 @@ class StoryReview:
     notes: list[str]
     revised_script: str = ""
     valid_response: bool = True
+    subscores: dict[str, float] = field(default_factory=dict)
 
 
 class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
@@ -39,7 +40,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     "script": payload.script,
                     "threshold": threshold,
                     "model": context.settings.get("ollama_model") or context.settings.get("model"),
-                    "prompt_version": context.settings.get("review_prompt_version") or 4,
+                    "prompt_version": context.settings.get("review_prompt_version") or 5,
                     "multi_judge_review": bool(context.settings.get("multi_judge_review", True)),
                     "multi_judge_min_words": int(context.settings.get("multi_judge_min_words") or 1600),
                     "hard_gate_version": 6,
@@ -54,6 +55,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     passed=bool(cached.get("passed")),
                     notes=[str(item) for item in cached.get("notes", [])],
                     revised_script=str(cached.get("revised_script") or ""),
+                    subscores=parse_subscores(cached.get("subscores")),
                 )
                 cached_review = reconcile_anomalous_positive_review(payload, cached_review, threshold)
                 cached_review = combine_with_content_gate(payload, cached_review, threshold)
@@ -64,6 +66,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                         "passed": cached_review.passed,
                         "notes": cached_review.notes,
                         "revised_script": cached_review.revised_script,
+                        "subscores": cached_review.subscores,
                     },
                 )
                 return cached_review
@@ -77,6 +80,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     passed=True,
                     notes=["Fast heuristic review passed; skipped model review.", *heuristic.notes],
                     revised_script="",
+                    subscores=heuristic.subscores,
                 )
                 if context.cache and cache_key:
                     context.cache.write_json(
@@ -86,6 +90,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                             "passed": review.passed,
                             "notes": review.notes,
                             "revised_script": review.revised_script,
+                            "subscores": review.subscores,
                         },
                     )
                 return combine_with_content_gate(payload, review, threshold)
@@ -143,6 +148,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     passed=review.passed,
                     notes=[*review.notes, "Specialist reviewers were unavailable; kept the primary validated review."],
                     revised_script=review.revised_script,
+                    subscores=review.subscores,
                 )
             else:
                 all_reviews = [review, *specialist_reviews]
@@ -150,6 +156,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                 combined_notes: list[str] = []
                 for item in all_reviews:
                     combined_notes.extend(note for note in item.notes if note not in combined_notes)
+                combined_subscores = average_subscores(all_reviews)
                 review = StoryReview(
                     score=combined_score,
                     passed=(
@@ -159,6 +166,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     ),
                     notes=combined_notes[:16],
                     revised_script=review.revised_script,
+                    subscores=combined_subscores,
                 )
 
         review = reconcile_anomalous_positive_review(payload, review, threshold)
@@ -172,6 +180,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     "passed": review.passed,
                     "notes": review.notes,
                     "revised_script": review.revised_script,
+                    "subscores": review.subscores,
                 },
             )
         return review
@@ -220,7 +229,8 @@ Return only JSON with this shape:
     "retention": 0-100,
     "psychology": 0-100,
     "sleep_quality": 0-100,
-    "visual_variety": 0-100
+    "visual_variety": 0-100,
+    "ai_repetition": 0-100
   }},
   "notes": ["short note"],
   "revised_script": ""
@@ -247,7 +257,20 @@ calm low stakes, no child positioning, limited repeated mood words, and at least
 {rubric}
 
 Be strict and do not rewrite the story. Return only JSON:
-{{"score": 0-100, "passed": true or false, "notes": ["specific short evidence"], "revised_script": ""}}
+{{
+  "score": 0-100,
+  "passed": true or false,
+  "subscores": {{
+    "story_structure": 0-100,
+    "retention": 0-100,
+    "psychology": 0-100,
+    "sleep_quality": 0-100,
+    "visual_variety": 0-100,
+    "ai_repetition": 0-100
+  }},
+  "notes": ["specific short evidence"],
+  "revised_script": ""
+}}
 Passing threshold: {threshold:g}
 
 Title: {story.title}
@@ -262,18 +285,61 @@ def parse_review_response(response: str, threshold: float) -> StoryReview:
     if not data:
         return StoryReview(score=0, passed=False, notes=["Reviewer did not return valid JSON."], valid_response=False)
     score = bounded_score(data.get("score"))
+    subscores = parse_subscores(data.get("subscores"))
     notes = data.get("notes")
     if not isinstance(notes, list):
         notes = [str(notes)] if notes else []
+    clean_notes = [str(item).strip() for item in notes if str(item).strip()]
+    component_note = component_scores_note(subscores)
+    if component_note and component_note not in clean_notes:
+        clean_notes.insert(0, component_note)
     revised_script = str(data.get("revised_script") or "").strip()
     passed = bool(data.get("passed")) and score >= threshold
     return StoryReview(
         score=score,
         passed=passed,
-        notes=[str(item).strip() for item in notes if str(item).strip()],
+        notes=clean_notes,
         revised_script=revised_script,
         valid_response=True,
+        subscores=subscores,
     )
+
+
+def parse_subscores(value: Any) -> dict[str, float]:
+    if not isinstance(value, dict):
+        return {}
+    allowed = {
+        "story_structure",
+        "retention",
+        "psychology",
+        "sleep_quality",
+        "visual_variety",
+        "ai_repetition",
+    }
+    parsed: dict[str, float] = {}
+    for key, raw in value.items():
+        normalized = str(key).strip().lower().replace(" ", "_").replace("-", "_")
+        if normalized not in allowed:
+            continue
+        parsed[normalized] = bounded_score(raw)
+    return parsed
+
+
+def component_scores_note(subscores: dict[str, float]) -> str:
+    if not subscores:
+        return ""
+    ordered = sorted(subscores.items(), key=lambda item: item[1])
+    weakest = ", ".join(f"{name}={score:.0f}" for name, score in ordered[:2])
+    all_scores = ", ".join(f"{name}={score:.0f}" for name, score in sorted(subscores.items()))
+    return f"Component scores: {all_scores}. Weakest: {weakest}."
+
+
+def average_subscores(reviews: list[StoryReview]) -> dict[str, float]:
+    buckets: dict[str, list[float]] = {}
+    for review in reviews:
+        for key, score in review.subscores.items():
+            buckets.setdefault(key, []).append(score)
+    return {key: round(sum(values) / len(values), 1) for key, values in buckets.items() if values}
 
 
 def extract_json_object(value: str) -> dict[str, Any] | None:
@@ -314,6 +380,7 @@ def combine_with_content_gate(story: StoryArtifact, review: StoryReview, thresho
         notes=notes[:20],
         revised_script=review.revised_script,
         valid_response=review.valid_response,
+        subscores=review.subscores,
     )
 
 
@@ -365,6 +432,7 @@ def reconcile_anomalous_positive_review(
         notes=notes,
         revised_script=review.revised_script,
         valid_response=review.valid_response,
+        subscores=review.subscores,
     )
 
 
@@ -385,12 +453,14 @@ def has_negative_review_marker(notes_text: str) -> bool:
         "",
         text,
     )
-    negative_markers = (
-        "lack", "lacks", "missing", "weak", "thin", "repetitive", "too generic",
-        "not enough", "no clear", "fails", "failed", "below", "insufficient",
-        "problem", "issue", "needs", "should", "must improve", "does not",
+    negative_phrases = ("too generic", "not enough", "no clear", "must improve", "does not")
+    if any(phrase in text for phrase in negative_phrases):
+        return True
+    negative_words = (
+        "lack", "lacks", "missing", "weak", "thin", "repetitive",
+        "fails", "failed", "below", "insufficient", "problem", "issue", "needs", "should",
     )
-    return any(marker in text for marker in negative_markers)
+    return any(re.search(rf"\b{re.escape(marker)}\b", text) for marker in negative_words)
 
 
 def content_gate_violations(script: str) -> list[str]:
@@ -581,7 +651,43 @@ def heuristic_review(story: StoryArtifact, threshold: float) -> StoryReview:
     if not notes:
         notes.append("Heuristic review passed because model review was unavailable.")
     score = max(0, min(100, score))
-    return StoryReview(score=score, passed=score >= threshold, notes=notes)
+    subscores = heuristic_subscores(
+        story.script,
+        narrative_score=narrative_score,
+        progression_score=progression_score,
+        repetition_penalty=repetition_penalty,
+    )
+    component_note = component_scores_note(subscores)
+    if component_note:
+        notes = [component_note, *notes]
+    return StoryReview(score=score, passed=score >= threshold, notes=notes, subscores=subscores)
+
+
+def heuristic_subscores(
+    script: str,
+    *,
+    narrative_score: int,
+    progression_score: int,
+    repetition_penalty: int,
+) -> dict[str, float]:
+    words = (script or "").split()
+    enough_longform = len(words) >= 1600
+    return {
+        "story_structure": min(100.0, max(35.0, narrative_score * 16.0)),
+        "retention": min(
+            100.0,
+            max(
+                35.0,
+                (progression_score * 11.0)
+                + (18.0 if strong_adult_hook(script) else 0.0)
+                + (8.0 if enough_longform else 0.0),
+            ),
+        ),
+        "psychology": 92.0 if has_concrete_memory(script) else 62.0,
+        "sleep_quality": 64.0 if early_sleep_signoff_count(script) else 92.0,
+        "visual_variety": min(100.0, max(40.0, progression_score * 12.0)),
+        "ai_repetition": max(45.0, 96.0 - repetition_penalty * 2.0),
+    }
 
 
 def fallback_review(story: StoryArtifact, threshold: float, reason: str) -> StoryReview:
@@ -598,6 +704,7 @@ def fallback_review(story: StoryArtifact, threshold: float, reason: str) -> Stor
         notes=notes,
         revised_script="",
         valid_response=True,
+        subscores=heuristic.subscores,
     )
 
 

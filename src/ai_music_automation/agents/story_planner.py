@@ -77,6 +77,8 @@ and not only a scenic description. Build a clear gentle narrative arc:
   action, symbolic object, and visual change while sharing one art style
 - a retention structure similar to: description -> discovery -> small mystery -> discovery -> memory ->
   new room/place -> new object -> another revelation -> kind choice -> sleep resolution
+- a visible retention beat every 2-4 minutes: each beat should change the listener's question, the place,
+  the object state, or the character's understanding without adding danger or urgency
 - one gentle choice where the character gives up fear, pride, hurry, control, or loneliness
 - a clear life lesson that arrives through action, not a lecture
 - a calm resolution that naturally leads into sleep
@@ -106,16 +108,16 @@ Return only JSON:
   "title": "final title",
   "hook": "one opening sentence, 18-32 words, speaking directly to a tired adult listener with If you have ever..., Have you ever..., or If you have been carrying...",
   "outline": [
-    "beat 1 DESCRIPTION: SET PIECE, ACTION, OBJECT - open with an adult emotional promise, then introduce the named character and the specific quiet hurt",
-    "beat 2 DISCOVERY: SET PIECE, ACTION, OBJECT - the first magical invitation opens a visually different location",
-    "beat 3 SMALL MYSTERY: SET PIECE, ACTION, OBJECT - a calm question appears and gives the listener a reason to continue",
-    "beat 4 DISCOVERY: SET PIECE, ACTION, OBJECT - the character follows the clue into a new visual place or state",
-    "beat 5 MEMORY: SET PIECE, ACTION, OBJECT - reveal one concrete memory behind the feeling through visible action",
-    "beat 6 NEW ROOM: SET PIECE, ACTION, OBJECT - enter a new chamber, garden, balcony, railway car, market, shore, archive, or other drawable location",
-    "beat 7 NEW OBJECT: SET PIECE, ACTION, OBJECT - introduce or transform one symbolic object that changes the meaning of the journey",
-    "beat 8 ANOTHER REVELATION: SET PIECE, ACTION, OBJECT - reveal a second quiet truth without making the story dramatic",
-    "beat 9 KIND CHOICE: SET PIECE, ACTION, OBJECT - the character makes one irreversible gentle choice shown through action",
-    "beat 10 SLEEP RESOLUTION: SET PIECE, ACTION, OBJECT - show what changed, then resolve with safety, rest, and sleep"
+    "beat 1 DESCRIPTION: SET PIECE, ACTION, OBJECT, LISTENER QUESTION - open with an adult emotional promise, then introduce the named character and the specific quiet hurt",
+    "beat 2 DISCOVERY: SET PIECE, ACTION, OBJECT, LISTENER QUESTION - the first magical invitation opens a visually different location",
+    "beat 3 SMALL MYSTERY: SET PIECE, ACTION, OBJECT, LISTENER QUESTION - a calm question appears and gives the listener a reason to continue",
+    "beat 4 DISCOVERY: SET PIECE, ACTION, OBJECT, LISTENER QUESTION - the character follows the clue into a new visual place or state",
+    "beat 5 MEMORY: SET PIECE, ACTION, OBJECT, LISTENER QUESTION - reveal one concrete memory behind the feeling through visible action",
+    "beat 6 NEW ROOM: SET PIECE, ACTION, OBJECT, LISTENER QUESTION - enter a new chamber, garden, balcony, railway car, market, shore, archive, or other drawable location",
+    "beat 7 NEW OBJECT: SET PIECE, ACTION, OBJECT, LISTENER QUESTION - introduce or transform one symbolic object that changes the meaning of the journey",
+    "beat 8 ANOTHER REVELATION: SET PIECE, ACTION, OBJECT, LISTENER QUESTION - reveal a second quiet truth without making the story dramatic",
+    "beat 9 KIND CHOICE: SET PIECE, ACTION, OBJECT, LISTENER QUESTION - the character makes one irreversible gentle choice shown through action",
+    "beat 10 SLEEP RESOLUTION: SET PIECE, ACTION, OBJECT, LISTENER QUESTION - show what changed, then resolve with safety, rest, and sleep"
   ],
   "ending": "soft ending",
   "lesson": "one specific gentle lesson, not generic, written as a takeaway from the plot"

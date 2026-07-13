@@ -772,6 +772,12 @@ def build_review_rewrite_prompt(source_prompt: str, plan, review_notes: list[str
 Rewrite requirement from quality judges:
 {notes}
 
+If the notes include component scores, focus the revision on the weakest components first.
+For example: weak retention means add a clearer curiosity thread and visible beat changes;
+weak psychology means make the emotional memory more concrete; weak visual variety means
+add distinct drawable set pieces; weak AI repetition means replace repeated mood words with
+specific objects, textures, actions, and places. Do not force a fixed motif or object.
+
 Before writing, obey this long-form sequence:
 1. Description: establish character, setting, object, and adult emotional promise.
 2. Discovery: the first visible magical clue appears.
