@@ -295,7 +295,7 @@ class ReliabilityTests(unittest.TestCase):
                     "prompt_version": 4,
                     "multi_judge_review": False,
                     "multi_judge_min_words": 1600,
-                    "hard_gate_version": 4,
+                    "hard_gate_version": 5,
                 },
             )
             cache.write_json(
@@ -333,6 +333,20 @@ class ReliabilityTests(unittest.TestCase):
         self.assertRegex(repaired, r"[.!?]$")
         self.assertIn("You may rest now", repaired)
         self.assertFalse(content_gate_violations(repaired))
+
+    def test_sleep_story_hard_gate_accepts_role_based_new_symbolic_object(self) -> None:
+        script = (
+            "If you have been carrying an old worry in your heart tonight, this story may help you set it down before sleep. "
+            "Mira lived beside a rain-bright station where travelers left small keepsakes on a cedar shelf. "
+            "She wanted to understand why a folded blue scarf on that shelf whispered only when the platform lamps went dim. "
+            "Mira opened the station door, carried the scarf through the glass arcade, crossed a footbridge, and entered a quiet greenhouse. "
+            "Years ago, Mira had once folded a blue scarf for a friend at the station, waited beside the last train, and kept the goodbye inside her pocket. "
+            "In the greenhouse, the scarf changed when she placed it beside a bowl of rainwater, showing tiny threads of lantern light. "
+            "Mira realized the scarf was not asking to be kept, but to be returned to the shelf where other tired travelers could find comfort. "
+            "She chose to give it back, opened her hands, released the old goodbye, and walked home through the soft rain. "
+            "At the end of the night, Mira rested by the window, safe to rest, while the station lamps settled into sleep."
+        )
+        self.assertFalse(content_gate_violations(script))
 
     def test_automation_logger_state_lock_does_not_fail_event(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

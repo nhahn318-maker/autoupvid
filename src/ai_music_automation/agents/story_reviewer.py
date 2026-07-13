@@ -42,7 +42,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     "prompt_version": context.settings.get("review_prompt_version") or 4,
                     "multi_judge_review": bool(context.settings.get("multi_judge_review", True)),
                     "multi_judge_min_words": int(context.settings.get("multi_judge_min_words") or 1600),
-                    "hard_gate_version": 4,
+                    "hard_gate_version": 5,
                 },
             )
             cached = context.cache.read_json(cache_key)
@@ -433,47 +433,14 @@ def content_gate_violations(script: str) -> list[str]:
     if not re.search(r"\b(rest now|you may rest|fell asleep|drifted into sleep|slept|safe to rest)\b", final_section):
         violations.append("Hard gate: the final 15% lacks one clear adult sleep resolution.")
 
-    memory_cues = r"\b(remembered|memory|years ago|had once|used to|that night|that day|that evening|childhood)\b"
-    concrete_cues = r"\b(letter|cup|promise|apology|mother|father|friend|sister|brother|news|chair|voice|photograph|ticket|meal|conversation|goodbye|mechanism|gear|gears|clock|watch|pendulum|weight|workshop|order)\b"
-    memory_event_cues = r"\b(waited|said|wrote|sent|never sent|left|returned|saved|promised|apologized|called|visited|shared|gave|received|heard|kept|did not come|worked|working|racing|pushed|adjusted|forced|held|carried)\b"
-    concrete_memory = any(
-        re.search(memory_cues, sentence, flags=re.I)
-        and re.search(concrete_cues, sentence, flags=re.I)
-        and re.search(memory_event_cues, sentence, flags=re.I)
-        for sentence in sentences
-    )
-    if not concrete_memory:
+    if not has_concrete_memory_role(sentences):
         violations.append("Hard gate: no concrete emotional memory connects a person/object to the burden.")
 
-    mystery_index = next(
-        (
-            index for index, sentence in enumerate(sentences)
-            if re.search(r"\b(mystery|secret|strange|unfamiliar|wondered|question|why|appeared without|glowed by itself|hesitated|yielding|unfolded|revealed|shimmered|pulsed)\b", sentence, flags=re.I)
-        ),
-        None,
-    )
-    recurring_objects = (
-        "lantern", "letter", "book", "key", "stone", "clock", "cup", "bell",
-        "map", "box", "ticket", "photograph", "scarf", "boat", "seed",
-        "mechanism", "gear", "gears", "weight", "watch", "pendulum",
-    )
-    if mystery_index is None:
+    mystery_report = magical_mystery_payoff_report(sentences)
+    if not mystery_report["has_mystery"]:
         violations.append("Hard gate: no small magical mystery is established.")
-    else:
-        mystery_sentence = sentences[mystery_index].lower()
-        mystery_objects = [obj for obj in recurring_objects if re.search(rf"\b{obj}\b", mystery_sentence)]
-        payoff_ok = False
-        for obj in mystery_objects:
-            later_sentences = [sentence.lower() for sentence in sentences[mystery_index + 1 :]]
-            object_mentions = [sentence for sentence in later_sentences if re.search(rf"\b{obj}\b", sentence)]
-            if len(object_mentions) >= 2 and any(
-                re.search(r"\b(realized|understood|revealed|discovered|learned|opened|changed|returned|chose)\b", sentence)
-                for sentence in object_mentions
-            ):
-                payoff_ok = True
-                break
-        if not payoff_ok:
-            violations.append("Hard gate: the magical mystery/object is introduced without a clear later payoff.")
+    elif not mystery_report["has_payoff"]:
+        violations.append("Hard gate: the magical mystery/object is introduced without a clear later payoff.")
 
     action_count = len(
         re.findall(
@@ -485,6 +452,101 @@ def content_gate_violations(script: str) -> list[str]:
     if action_count < max(5, len(words) // 220):
         violations.append("Hard gate: too few visible actions; description is replacing plot progression.")
     return violations
+
+
+MEMORY_CUE_RE = re.compile(
+    r"\b(remembered|memory|years ago|had once|used to|that night|that day|"
+    r"that evening|childhood|once|long ago|earlier)\b",
+    flags=re.I,
+)
+MEMORY_EVENT_RE = re.compile(
+    r"\b(waited|said|wrote|sent|left|returned|saved|promised|apologized|called|"
+    r"visited|shared|gave|received|heard|kept|worked|working|racing|pushed|"
+    r"adjusted|forced|held|carried|lost|found|opened|closed|placed|offered|folded|"
+    r"refused|forgot|remembered)\b",
+    flags=re.I,
+)
+MYSTERY_CUE_RE = re.compile(
+    r"\b(mystery|secret|strange|unfamiliar|wondered|question|why|appeared|"
+    r"glowed|hesitated|yielding|unfolded|revealed|shimmered|pulsed|changed|"
+    r"moved by itself|opened by itself|whispered|hummed|vanished)\b",
+    flags=re.I,
+)
+PAYOFF_CUE_RE = re.compile(
+    r"\b(realized|understood|revealed|discovered|learned|opened|changed|"
+    r"returned|chose|decided|placed|offered|released|set down|gave|shared|"
+    r"accepted|let go|no longer|became|transformed)\b",
+    flags=re.I,
+)
+CONCRETE_STOPWORDS = {
+    "about", "again", "against", "almost", "around", "because", "before", "behind",
+    "being", "between", "beyond", "breath", "carried", "could", "deep", "every",
+    "felt", "first", "from", "gentle", "heavy", "herself", "himself", "into",
+    "itself", "light", "little", "moment", "morning", "night", "only", "other",
+    "patient", "peace", "peaceful", "quiet", "really", "seemed", "silence",
+    "slow", "soft", "still", "story", "their", "there", "these", "thing",
+    "through", "toward", "under", "until", "voice", "warm", "where", "while",
+    "world", "would", "years",
+}
+
+
+def has_concrete_memory_role(sentences: list[str]) -> bool:
+    for sentence in sentences:
+        if not MEMORY_CUE_RE.search(sentence):
+            continue
+        if not MEMORY_EVENT_RE.search(sentence):
+            continue
+        if len(salient_story_terms(sentence)) >= 2:
+            return True
+    return False
+
+
+def magical_mystery_payoff_report(sentences: list[str]) -> dict[str, bool]:
+    for index, sentence in enumerate(sentences):
+        if not MYSTERY_CUE_RE.search(sentence):
+            continue
+        mystery_terms = salient_story_terms(sentence)
+        later = sentences[index + 1 :]
+        if not later:
+            return {"has_mystery": True, "has_payoff": False}
+        if mystery_terms:
+            for term in mystery_terms:
+                mentions = [
+                    item for item in later
+                    if re.search(rf"\b{re.escape(term)}s?\b", item, flags=re.I)
+                ]
+                if len(mentions) >= 1 and any(PAYOFF_CUE_RE.search(item) for item in mentions):
+                    return {"has_mystery": True, "has_payoff": True}
+        # Some stories use a setting-based mystery where the exact noun changes
+        # from clue to payoff. Accept it when a later sentence clearly reveals a
+        # discovery and repeats at least one concrete story term.
+        later_with_payoff = [item for item in later if PAYOFF_CUE_RE.search(item)]
+        if later_with_payoff and any(
+            set(mystery_terms) & set(salient_story_terms(item))
+            for item in later_with_payoff
+        ):
+            return {"has_mystery": True, "has_payoff": True}
+        return {"has_mystery": True, "has_payoff": False}
+    return {"has_mystery": False, "has_payoff": False}
+
+
+def salient_story_terms(sentence: str) -> list[str]:
+    words = [
+        item.lower()
+        for item in re.findall(r"\b[a-z][a-z'-]{3,}\b", sentence or "", flags=re.I)
+    ]
+    terms: list[str] = []
+    for word in words:
+        normalized = word.strip("'").rstrip(".,;:!?")
+        if normalized.endswith("'s"):
+            normalized = normalized[:-2]
+        if normalized in CONCRETE_STOPWORDS:
+            continue
+        if normalized.endswith("ly") or normalized.endswith("ing") and normalized not in {"spring"}:
+            continue
+        if normalized not in terms:
+            terms.append(normalized)
+    return terms[:8]
 
 
 def heuristic_review(story: StoryArtifact, threshold: float) -> StoryReview:
@@ -707,18 +769,8 @@ def strong_adult_hook(script: str) -> bool:
 
 
 def has_concrete_memory(script: str) -> bool:
-    lowered = (script or "").lower()
-    return bool(
-        re.search(
-            r"\b(unsent letter|letter|waiting by the window|waited by the window|saved cup|teacup|"
-            r"promise|promised|apology|sorry|came back|return|returned|chair|empty chair|"
-            r"left behind|never sent|never spoken|not kept|years ago.*mechanism|remembered.*mechanism|"
-            r"remembered.*gears|remembered.*clock|exhaustion.*satisfaction|worked.*mechanism|"
-            r"racing against.*order)\b",
-            lowered,
-            flags=re.S,
-        )
-    )
+    sentences = [item.strip() for item in re.split(r"(?<=[.!?])\s+", script or "") if item.strip()]
+    return has_concrete_memory_role(sentences)
 
 
 def repeated_mood_word_penalty(script: str) -> int:
