@@ -6,6 +6,7 @@ data/input/audio/*
 data/input/images/*
 data/input/thumbnails/*
 data/input/story/*
+data/input/story-before-sleep/*
 data/input/buddhist/*
 data/input/effects/*
 data/input/football/*
@@ -14,6 +15,7 @@ data/input/podcast/*
 data/input/silent_horizone/*
 data/input/short_images/*
 data/output/*
+data/research/*
 data/state/*
 logs/*
 
@@ -21,6 +23,7 @@ logs/*
 !data/input/images/.gitkeep
 !data/input/thumbnails/.gitkeep
 !data/input/story/.gitkeep
+!data/input/story-before-sleep/.gitkeep
 !data/input/buddhist/.gitkeep
 !data/input/effects/.gitkeep
 !data/input/football/.gitkeep
@@ -29,6 +32,7 @@ logs/*
 !data/input/silent_horizone/.gitkeep
 !data/input/short_images/.gitkeep
 !data/output/.gitkeep
+!data/research/.gitkeep
 !data/state/.gitkeep
 !logs/.gitkeep
 
@@ -52,3 +56,5 @@ brain/
 tiktok/
 tools/
 data/tmp/
+docs/
+tiktok*.txt
