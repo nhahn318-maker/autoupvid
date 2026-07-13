@@ -151,8 +151,10 @@ Rules:
   a meaningful choice, a consequence of that choice, and a soft resolution.
 - Give the main character a simple visual design an illustrator can reuse: apparent age, hair, outfit color,
   and one carried object. Keep it adult or age-neutral, not toddler-like.
-- Give the emotional need one concrete memory: an unsent letter, a cup saved for someone, a night waiting
-  beside a window, an apology never spoken, or a promise that was not kept. Keep it tender, not tragic.
+- Give the emotional need one concrete, drawable memory when it fits naturally: an unsent letter, a cup saved
+  for someone, a night waiting beside a window, an apology never spoken, or a promise that was not kept.
+  Keep it tender, not tragic. Strongly prefer an exact moment, place, person/object, and action over vague
+  lines like "a memory of waiting".
 - Add a small magical mystery around the symbolic object or setting. It should invite curiosity without urgency.
 - Include 3-5 visually distinct locations or set pieces that an image model can draw, while keeping the story
   calm: workshop, bridge, shore, library, greenhouse, railway platform, floating market, attic, snow village,
@@ -176,6 +178,9 @@ Rules:
   a window being opened, a light being shared, or a character choosing not to clutch a memory.
 - Avoid repeating the same mood words too often, especially: quiet, silence, soft, gentle, moonlight,
   stillness, heavy, warm, peaceful. Use concrete sensory details instead.
+- Avoid ending the story early. Words such as "fell asleep", "drifted into sleep", "rest now",
+  or "you may rest" should be reserved for the final paragraph. Before then, use "settled", "paused",
+  "breathed more easily", or "rested in the moment".
 - Avoid generic lessons like "be kind" unless the plot makes the lesson specific.
 - Avoid relying on second-person guided phrases such as "imagine yourself" for the whole script.
 - Do not make the listener the only character; the listener may be invited in, but the story needs its own character.
@@ -484,7 +489,26 @@ def polish_adult_sleep_story_script(script: str) -> str:
     polished = script
     for pattern, replacement in replacements.items():
         polished = re.sub(pattern, replacement, polished)
+    polished = soften_nonfinal_sleep_closures(polished)
     return keep_only_final_sleep_signoff(polished).strip()
+
+
+def soften_nonfinal_sleep_closures(script: str) -> str:
+    text = str(script or "")
+    if not text.strip():
+        return text
+    cutoff = int(len(text) * 0.85)
+    early = text[:cutoff]
+    late = text[cutoff:]
+    replacements = [
+        (r"\bdrift(?:ed|ing)?\s+into\s+(?:a\s+)?(?:deep\s+and\s+restorative\s+)?sleep\b", "settled into deep stillness"),
+        (r"\bdrift(?:ed|ing)?\s+toward\s+sleep\b", "drifted toward stillness"),
+        (r"\bfell\s+asleep\b", "grew deeply restful"),
+        (r"\bsank\s+into\s+sleep\b", "sank into stillness"),
+    ]
+    for pattern, replacement in replacements:
+        early = re.sub(pattern, replacement, early, flags=re.I)
+    return early + late
 
 
 def repair_complete_sleep_story_script(script: str, title: str = "") -> str:

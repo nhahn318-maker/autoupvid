@@ -18,8 +18,8 @@ from ai_music_automation.automation.logging import AutomationLogger
 from ai_music_automation.automation.model_client import ModelRequest, OllamaClient
 from ai_music_automation.job_store import JobStore
 from ai_music_automation.media_qa import inspect_media, inspect_subtitle
-from ai_music_automation.story_before_sleep import infer_character_gender_label
-from ai_music_automation.agents.story_writer import repair_complete_sleep_story_script
+from ai_music_automation.story_before_sleep import build_story_visual_bible, infer_character_gender_label
+from ai_music_automation.agents.story_writer import polish_adult_sleep_story_script, repair_complete_sleep_story_script
 from ai_music_automation.youtube_reporting import aggregate_reporting_csv, reporting_windows
 from ai_music_automation.web import (
     analyze_long_script_duplicates,
@@ -365,6 +365,38 @@ class ReliabilityTests(unittest.TestCase):
         self.assertRegex(repaired, r"[.!?]$")
         self.assertIn("You may rest now", repaired)
         self.assertFalse(content_gate_violations(repaired))
+
+    def test_sleep_story_polish_softens_mid_story_sleep_closure(self) -> None:
+        script = (
+            "If you have been waiting tonight, this story may help you rest. "
+            "Silas opened the lighthouse door and followed the lantern down the stairs. "
+            "He closed his eyes, breathing in the salt air, drifting into a deep and restorative sleep. "
+            "Then the lantern revealed a hidden room where he placed a shell beside the window. "
+            "At the end, Silas sat beside the warm light. You may rest now, safe in the quiet light."
+        )
+        polished = polish_adult_sleep_story_script(script)
+        early = polished[: int(len(polished) * 0.85)].lower()
+        self.assertNotIn("drifting into a deep and restorative sleep", early)
+        self.assertIn("settled into deep stillness", early)
+
+    def test_sleep_story_visual_bible_uses_script_not_reference_prompt(self) -> None:
+        story = StoryArtifact(
+            title="A Lighthouse Keeper's Wait",
+            prompt="Old visual reference: yellow dress, moon meadow, letter, clock, cottage, forest path.",
+            script=(
+                "Silas was an adult male lighthouse keeper in a blue coat. "
+                "He carried a brass lantern through the stone lighthouse and watched the misty shore. "
+                "He placed a smooth piece of driftwood beside the window and chose to wait with patience."
+            ),
+        )
+        bible = build_story_visual_bible(story, {})
+        combined = " ".join(bible.values()).lower()
+        self.assertIn("silas", combined)
+        self.assertIn("lighthouse", combined)
+        self.assertIn("lantern", combined)
+        self.assertNotIn("dress", combined)
+        self.assertNotIn("clock", combined)
+        self.assertNotIn("cottage", combined)
 
     def test_sleep_story_hard_gate_accepts_role_based_new_symbolic_object(self) -> None:
         script = (

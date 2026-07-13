@@ -2223,7 +2223,10 @@ def build_story_visual_bible(story: Any, settings: dict[str, Any] | None = None)
     outline = str(getattr(story, "outline", "") or "")
     script = str(getattr(story, "script", "") or "")
     lesson = str(getattr(story, "lesson", "") or "")
-    text = f"{title}\n{prompt}\n{hook}\n{outline}\n{script}"
+    # Infer character/world continuity only from the actual story, not from
+    # reference prompts or benchmark text that may mention unrelated outfits,
+    # objects, and locations.
+    text = f"{title}\n{hook}\n{outline}\n{script}"
     protagonist = infer_story_protagonist(text)
     character_profile = infer_story_character_profile(text, protagonist)
     settings_hint = infer_story_settings(text)
@@ -2490,12 +2493,14 @@ def infer_character_outfit_label(lowered: str) -> str:
         "willow leaf map",
     ]
     found = [word for word in outfit_words if re.search(rf"\b{re.escape(word)}\b", lowered)]
+    if infer_character_gender_label(lowered) == "male":
+        found = [word for word in found if word not in {"dress", "pajamas"}]
     return ", ".join(dict.fromkeys(found[:6]))
 
 
 def infer_character_negative_prompt(story: Any) -> str:
     text = (
-        f"{getattr(story, 'title', '')}\n{getattr(story, 'prompt', '')}\n"
+        f"{getattr(story, 'title', '')}\n"
         f"{getattr(story, 'hook', '')}\n{getattr(story, 'outline', '')}\n{getattr(story, 'script', '')}"
     ).lower()
     _, negatives = character_identity_constraints(text)

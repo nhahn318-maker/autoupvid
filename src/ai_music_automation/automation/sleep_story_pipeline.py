@@ -790,6 +790,8 @@ Avoid the previous failure modes:
 - no guided meditation as the main format
 - no long abstract relaxation tail after the story already ended
 - reduce repeated mood words by replacing them with concrete actions, objects, and places
+- prefer a drawable, specific memory when it fits naturally: one exact place, person/object, and action, not a vague "memory of waiting"
+- reserve sleep phrases such as "fell asleep", "drifted into sleep", "rest now", or "you may rest" for the final paragraph
 """
 
 
