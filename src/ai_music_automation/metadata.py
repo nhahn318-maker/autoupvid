@@ -48,13 +48,13 @@ def vietnamese_buddhist_short_description(title: str) -> str:
 
 
 VI_BUDDHIST_SHORT_HASHTAG_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+    (("khau nghiep", "loi noi", "im lang", "noi xau"), ("#khaunghiep", "#imlang")),
     (("nhan qua", "nghiep", "bao ung", "gieo nhan"), ("#nhanqua", "#nghiepbao")),
     (("buong bo", "oan trach", "nong gian", "khong chap", "bot kho"), ("#buongbo", "#botkho")),
     (("tam an", "binh an", "an nhien", "an lac", "nhe long"), ("#taman", "#binhan")),
     (("phuoc", "duyen lanh", "may man", "tai loc", "phuoc bao"), ("#phuoclanh", "#duyenlanh")),
     (("biet on", "tri an", "cam on"), ("#longbieton", "#songthien")),
     (("nhan nhin", "chiu thiet", "thiet thoi", "hien lanh"), ("#nhannhin", "#songthien")),
-    (("khau nghiep", "loi noi", "im lang", "noi xau"), ("#khaunghiep", "#imlang")),
     (("cha me", "me cha", "gia dinh", "con cai", "hieu thao"), ("#giadinh", "#hieuthao")),
     (("kinh phap cu", "phap cu"), ("#kinhphapcu", "#trituephatday")),
     (("ngu", "dem", "lo au", "met moi"), ("#nghephap", "#ngungon")),

@@ -3427,6 +3427,9 @@ def strengthen_vi_shorts_prompt(prompt_text: str) -> str:
         "- Có thể dùng title kiểu trực tiếp như: 'Gặp Được Video Này Là Có Duyên', 'Người Hiền Rồi Sẽ Gặp Phước', 'Ai Đang Khổ Hãy Nghe Lời Này', 'May Mắn Đến Từ Tâm Thiện', 'Giữ Phước Bằng 5 Việc Nhỏ'.",
         "- THUMBNAIL_TEXT phải ngắn, 2-5 từ, đánh vào một ý cụ thể: DUYÊN LÀNH, SẮP BÌNH AN, GIỮ PHƯỚC, TÂM THIỆN, BỚT KHỔ, MAY MẮN.",
         "- 2-3 câu đầu của SCRIPT BẮT BUỘC là hook mạnh, nhưng không nhất thiết luôn là hook đồng cảm cá nhân.",
+        "- SCRIPT phải là voiceover ngắn dưới 1 phút: ưu tiên 620-760 ký tự, không viết dài lan man.",
+        "- SCRIPT phải có cấu trúc rõ: hook 0-3 giây -> một ý Phật pháp đời thường -> một cách thực hành nhỏ -> câu kết.",
+        "- Câu cuối SCRIPT phải kết bằng đúng tinh thần niệm Phật: Nam Mô A Di Đà Phật.",
         "- Hook có thể là lời nhắn duyên lành, câu cầu chúc, nghịch lý nhân quả, câu chuyện rất ngắn, hoặc lời gọi đúng một nhóm người xem.",
         "- Được dùng hook kiểu 'Nghe được video này', 'Người có duyên mới nghe được', 'Tài lộc muốn đến...', nhưng hãy biến thể câu chữ để không lặp y nguyên giữa các video.",
         "- Với hook về tiền tài/tài lộc/may mắn, không hứa chắc chắn giàu lên; hãy gắn với điều kiện gieo nhân lành, tâm sáng, biết ơn, làm việc thiện, sống đúng đạo.",
@@ -3527,13 +3530,13 @@ def _fold_vi_for_guard(value: str) -> str:
 
 
 VI_BUDDHIST_SHORT_HASHTAG_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+    (("khau nghiep", "loi noi", "im lang", "noi xau"), ("#khaunghiep", "#imlang")),
     (("nhan qua", "nghiep", "bao ung", "gieo nhan"), ("#nhanqua", "#nghiepbao")),
     (("buong bo", "oan trach", "nong gian", "khong chap", "bot kho"), ("#buongbo", "#botkho")),
     (("tam an", "binh an", "an nhien", "an lac", "nhe long"), ("#taman", "#binhan")),
     (("phuoc", "duyen lanh", "may man", "tai loc", "phuoc bao"), ("#phuoclanh", "#duyenlanh")),
     (("biet on", "tri an", "cam on"), ("#longbieton", "#songthien")),
     (("nhan nhin", "chiu thiet", "thiet thoi", "hien lanh"), ("#nhannhin", "#songthien")),
-    (("khau nghiep", "loi noi", "im lang", "noi xau"), ("#khaunghiep", "#imlang")),
     (("cha me", "me cha", "gia dinh", "con cai", "hieu thao"), ("#giadinh", "#hieuthao")),
     (("kinh phap cu", "phap cu"), ("#kinhphapcu", "#trituephatday")),
     (("ngu", "dem", "lo au", "met moi"), ("#nghephap", "#ngungon")),
@@ -3637,6 +3640,14 @@ def sanitize_vi_shorts_response(response_text: str) -> str:
             rest = first_part[1].strip() if len(first_part) > 1 else ""
             new_script = replacement + ((" " + rest) if rest else "")
             text = text[: script_match.start(2)] + new_script + text[script_match.end(2) :]
+            script = new_script
+        if "nam mo a di da phat" not in _fold_vi_for_guard(script):
+            script = script.rstrip()
+            script = re.sub(r"\s*Nam\s+M[ôo]\s+A\s+Di\s+Đ[aà]\s+Ph[aậ]t\.?\s*$", "", script, flags=re.I)
+            if script and not re.search(r"[.!?。！？]$", script):
+                script += "."
+            script = f"{script} Nam Mô A Di Đà Phật.".strip()
+            text = text[: script_match.start(2)] + script + text[script_match.end(2) :]
     desc_match = re.search(
         r"(?is)(DESCRIPTION:\s*)(.*?)(?=\n\s*(?:TITLE|THUMBNAIL_TEXT|SCRIPT|IMAGE_PROMPTS|THUMBNAIL_PROMPT)\s*:|$)",
         text,

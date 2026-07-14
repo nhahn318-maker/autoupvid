@@ -554,6 +554,29 @@ class ReliabilityTests(unittest.TestCase):
         self.assertIn("TITLE:", sanitized)
         self.assertIn("SCRIPT:", sanitized)
 
+    def test_vi_shorts_sanitizer_preserves_short_format_blessing_and_dynamic_hashtags(self) -> None:
+        response = (
+            "TITLE: Giu Phuoc Bang Loi Noi Lanh\n"
+            "THUMBNAIL_TEXT: GIU PHUOC\n"
+            "SCRIPT: Nghe duoc loi nay la mot duyen lanh. Hom nay, neu con bot mot cau trach moc, "
+            "giu lai mot loi hien hoa, thi tam minh da gieo mot hat phuoc nho. Hay tap noi cham hon, "
+            "nghi thien hon, va de mot ngay di qua nhe hon\n"
+            "IMAGE_PROMPTS:\n"
+            "- scene 1\n- scene 2\n- scene 3\n- scene 4\n- scene 5\n"
+            "THUMBNAIL_PROMPT: warm Buddhist scene\n"
+            "DESCRIPTION: Mot loi nhac ve loi noi, khau nghiep va phuoc lanh.\n"
+        )
+        sanitized = sanitize_vi_shorts_response(response)
+        script_match = re.search(r"(?is)^SCRIPT:\s*(.*?)(?=\nIMAGE_PROMPTS:)", sanitized, re.M)
+        self.assertIsNotNone(script_match)
+        script = script_match.group(1).strip()
+        hashtags = re.findall(r"#[\wÀ-ỹĐđ]+", sanitized)
+        self.assertTrue(script.endswith("Nam Mô A Di Đà Phật."))
+        self.assertLessEqual(len(script), 760)
+        self.assertEqual(len(hashtags), 5)
+        self.assertIn("#khaunghiep", hashtags)
+        self.assertIn("#shorts", hashtags)
+
     def test_sleep_story_hard_gate_blocks_early_ending_but_not_creative_object_roles(self) -> None:
         script = (
             "If you have been tired tonight, this story may help your heart rest. "
