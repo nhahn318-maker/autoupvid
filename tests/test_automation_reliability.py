@@ -29,6 +29,7 @@ from ai_music_automation.web import (
     build_long_chapter_continuation_prompt,
     long_chapter_overlap_ratio,
     sanitize_vi_shorts_response,
+    _vi_short_hook_replacement,
 )
 from ai_music_automation.agents.story_reviewer import (
     StoryReviewerAgent,
@@ -576,6 +577,13 @@ class ReliabilityTests(unittest.TestCase):
         self.assertEqual(len(hashtags), 5)
         self.assertIn("#khaunghiep", hashtags)
         self.assertIn("#shorts", hashtags)
+
+    def test_vi_short_hook_replacement_has_broader_variety(self) -> None:
+        hooks = {_vi_short_hook_replacement(f"seed-{index}") for index in range(40)}
+        self.assertGreaterEqual(len(hooks), 10)
+        folded = " ".join(hooks).lower()
+        self.assertIn("duyên", folded)
+        self.assertTrue(any(keyword in folded for keyword in ("tài lộc", "phước", "bình an")))
 
     def test_sleep_story_hard_gate_blocks_early_ending_but_not_creative_object_roles(self) -> None:
         script = (
