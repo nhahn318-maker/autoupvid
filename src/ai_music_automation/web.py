@@ -2123,6 +2123,43 @@ def fullauto_config_for_account(config, account_id: str):
     return type(config)(data=data, root=config.root)
 
 
+SHORT_ACCOUNT_STATE_KEYS = ("used_prompts", "next_prompt_index", "image_index", "voice_index")
+
+
+def scoped_short_state_for_account(global_state: dict[str, Any], account_id: str) -> dict[str, Any]:
+    state = dict(global_state or {})
+    accounts = state.get("accounts")
+    if not isinstance(accounts, dict):
+        accounts = {}
+    account_state = accounts.get(str(account_id or ""))
+    if not isinstance(account_state, dict):
+        account_state = {}
+    scoped = {
+        "used_prompts": list(account_state.get("used_prompts") or []),
+        "next_prompt_index": int(account_state.get("next_prompt_index") or 0),
+        "image_index": int(account_state.get("image_index") or 0),
+        "voice_index": int(account_state.get("voice_index") or 0),
+        "_global_fullauto_state": state,
+        "_scoped_account_id": str(account_id or ""),
+    }
+    return scoped
+
+
+def merge_short_state_for_account(global_state: dict[str, Any], scoped_state: dict[str, Any], account_id: str) -> dict[str, Any]:
+    merged = dict(global_state or {})
+    accounts = merged.get("accounts")
+    if not isinstance(accounts, dict):
+        accounts = {}
+    account_key = str(account_id or "")
+    account_state = dict(accounts.get(account_key) or {})
+    for key in SHORT_ACCOUNT_STATE_KEYS:
+        if key in scoped_state:
+            account_state[key] = scoped_state[key]
+    accounts[account_key] = account_state
+    merged["accounts"] = accounts
+    return merged
+
+
 def validate_fullauto_action_assets(action: str, account_id: str | None = None) -> str:
     config = fullauto_config_for_account(load_config(ROOT), account_id or "")
     account = get_active_account_id(config)
@@ -2316,6 +2353,10 @@ def configured_recovered_module(config):
         recovered._codex_original_run_twenty_min_job = recovered.run_fullauto_twenty_min_job
     if not hasattr(recovered, "_codex_original_run_fullauto_story_job"):
         recovered._codex_original_run_fullauto_story_job = recovered.run_fullauto_story_job
+    if not hasattr(recovered, "_codex_original_read_fullauto_state"):
+        recovered._codex_original_read_fullauto_state = recovered.read_fullauto_state
+    if not hasattr(recovered, "_codex_original_write_fullauto_state"):
+        recovered._codex_original_write_fullauto_state = recovered.write_fullauto_state
     if not hasattr(recovered, "_codex_original_run_fullauto_long_job"):
         recovered._codex_original_run_fullauto_long_job = recovered.run_fullauto_long_job
     if not hasattr(recovered, "_codex_original_call_gemini_story_model"):
@@ -2347,6 +2388,8 @@ def configured_recovered_module(config):
     original_read_twenty_min_prompt_file = recovered._codex_original_read_twenty_min_prompt_file
     original_run_twenty_min_job = recovered._codex_original_run_twenty_min_job
     original_run_fullauto_story_job = recovered._codex_original_run_fullauto_story_job
+    original_read_fullauto_state = recovered._codex_original_read_fullauto_state
+    original_write_fullauto_state = recovered._codex_original_write_fullauto_state
     original_run_fullauto_long_job = recovered._codex_original_run_fullauto_long_job
     original_call_gemini_story_model = recovered._codex_original_call_gemini_story_model
     original_call_ollama_story_model = recovered._codex_original_call_ollama_story_model
@@ -2571,14 +2614,32 @@ def configured_recovered_module(config):
         active_account = get_active_account_id(upload_config or config)
         recovered._current_fullauto_story_job = job
         recovered._current_fullauto_story_account = active_account
+        previous_read_state = recovered.read_fullauto_state
+        previous_write_state = recovered.write_fullauto_state
+
+        def read_account_short_state() -> dict[str, Any]:
+            global_state = original_read_fullauto_state()
+            return scoped_short_state_for_account(global_state, active_account)
+
+        def write_account_short_state(scoped_state: dict[str, Any]) -> None:
+            base_state = scoped_state.get("_global_fullauto_state")
+            if not isinstance(base_state, dict):
+                base_state = original_read_fullauto_state()
+            merged_state = merge_short_state_for_account(base_state, scoped_state, active_account)
+            original_write_fullauto_state(merged_state)
+
+        recovered.read_fullauto_state = read_account_short_state
+        recovered.write_fullauto_state = write_account_short_state
         if is_fullauto_vietnamese_account(active_account):
             log(
                 job,
-                "Shorts strategy: uu tien hook ca nhan 0-3 giay de tang Viewed vs Swiped Away.",
+                "Shorts strategy: account-scoped prompt cursor + uu tien hook ca nhan 0-3 giay.",
             )
         try:
             return original_run_fullauto_story_job(job, config, paths, state, upload_config)
         finally:
+            recovered.read_fullauto_state = previous_read_state
+            recovered.write_fullauto_state = previous_write_state
             recovered._current_fullauto_story_job = None
             recovered._current_fullauto_story_account = None
 

@@ -28,7 +28,9 @@ from ai_music_automation.web import (
     analyze_long_script_duplicates,
     build_long_chapter_continuation_prompt,
     long_chapter_overlap_ratio,
+    merge_short_state_for_account,
     sanitize_vi_shorts_response,
+    scoped_short_state_for_account,
     _vi_short_hook_replacement,
 )
 from ai_music_automation.agents.story_reviewer import (
@@ -584,6 +586,25 @@ class ReliabilityTests(unittest.TestCase):
         folded = " ".join(hooks).lower()
         self.assertIn("duyên", folded)
         self.assertTrue(any(keyword in folded for keyword in ("tài lộc", "phước", "bình an")))
+
+    def test_bulk_short_prompt_state_is_scoped_per_account(self) -> None:
+        global_state = {
+            "used_prompts": ["legacy"],
+            "next_prompt_index": 9,
+            "accounts": {
+                "account1": {"used_prompts": ["a"], "next_prompt_index": 2, "image_index": 5, "voice_index": 1},
+                "account2": {"used_prompts": ["b"], "next_prompt_index": 4, "image_index": 10, "voice_index": 0},
+            },
+        }
+        scoped = scoped_short_state_for_account(global_state, "account1")
+        self.assertEqual(scoped["next_prompt_index"], 2)
+        scoped["next_prompt_index"] = 4
+        scoped["used_prompts"].append("new")
+        merged = merge_short_state_for_account(global_state, scoped, "account1")
+        self.assertEqual(merged["accounts"]["account1"]["next_prompt_index"], 4)
+        self.assertEqual(merged["accounts"]["account2"]["next_prompt_index"], 4)
+        self.assertIn("new", merged["accounts"]["account1"]["used_prompts"])
+        self.assertEqual(merged["next_prompt_index"], 9)
 
     def test_sleep_story_hard_gate_blocks_early_ending_but_not_creative_object_roles(self) -> None:
         script = (
