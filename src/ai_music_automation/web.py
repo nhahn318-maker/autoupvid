@@ -3435,6 +3435,7 @@ def strengthen_vi_shorts_prompt(prompt_text: str) -> str:
         "- Chủ đề ưu tiên phải xen kẽ: duyên lành, phước báo, nhân quả đời thường, may mắn, tiền tài đúng đạo, chịu thiệt, lòng biết ơn, buông bỏ, bình an, gia đình, cha mẹ, con cái, tha thứ.",
         "- Nếu prompt gốc đã là kiểu cảm xúc cá nhân, hãy biến phần title/script thành một góc nhìn khác như duyên lành, phước báo, câu chuyện nhân quả, hoặc lời cầu chúc.",
         "- Hạn chế title và hook quá chung chung dạng 'Lời Phật dạy về...', 'Bài học cuộc sống...'. Chỉ dùng '5 điều...' khi prompt gốc yêu cầu dạng liệt kê.",
+        "- DESCRIPTION chỉ dùng 3-5 hashtag theo đúng chủ đề video, không dùng bộ hashtag cố định. Ưu tiên #phatphap #loiphatday + hashtag nội dung như #nhanqua #buongbo #taman #phuoclanh #duyenlanh #longbieton #khaunghiep + #shorts.",
         "- Câu kết vẫn giữ sâu và ấm, nhưng hook đầu video mới là điểm ưu tiên cao nhất.",
         "",
         "VÍ DỤ HOOK/TITLE ĐỂ XEN KẼ:",
@@ -3451,6 +3452,18 @@ def strengthen_vi_shorts_prompt(prompt_text: str) -> str:
         "- Nếu đang mong tiền tài mở lối, hãy giữ tâm mình trước...",
         "- Một việc thiện rất nhỏ cũng có thể đổi hướng một ngày buồn...",
         "- Ai biết ơn trong lúc khó khăn, người đó đang giữ lại phước lành...",
+        "",
+        "NGAN HANG GOC NOI DUNG CAN XOAY VONG, KHONG LAP MAI MOT CUM:",
+        "- Nhan qua doi thuong: mot loi noi gay ton thuong, mot hanh dong nho tao qua ve sau.",
+        "- Nghiep mieng/khau duc: im lang dung luc, bot phan xet, noi loi lanh.",
+        "- Buong bo san han: bot hon thua, bot oam trach, khong chap vao viec cu.",
+        "- Hieu dao/gia dinh: cha me, con cai, mot bua com, mot cuoc goi chua kip noi.",
+        "- Ngu gioi va doi song: khong noi doi, khong lam hai, khong tham qua, song dung muc.",
+        "- Phuoc duc that te: giup nguoi, giu loi hua, tra on, lam viec thien am tham.",
+        "- Tam an truoc khi ngu: dem kho ngu, lo au, tam tri khong chiu yen.",
+        "- Tien tai dung dao: tai loc gan voi tam thien, ky luat, biet du, khong tham.",
+        "- Chua lanh noi tam: tha thu cho minh, chap nhan sai lam, bat dau lai nhe hon.",
+        "- Duyen lanh gap Phat phap: nghe dung luc, gap mot loi nhac, thay minh can doi.",
         "",
         "ĐỊNH DẠNG OUTPUT BẮT BUỘC, KHÔNG ĐƯỢC THIẾU MỤC NÀO:",
         "TITLE: ...",
@@ -3513,6 +3526,48 @@ def _fold_vi_for_guard(value: str) -> str:
     return re.sub(r"\s+", " ", text).strip().lower()
 
 
+VI_BUDDHIST_SHORT_HASHTAG_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+    (("nhan qua", "nghiep", "bao ung", "gieo nhan"), ("#nhanqua", "#nghiepbao")),
+    (("buong bo", "oan trach", "nong gian", "khong chap", "bot kho"), ("#buongbo", "#botkho")),
+    (("tam an", "binh an", "an nhien", "an lac", "nhe long"), ("#taman", "#binhan")),
+    (("phuoc", "duyen lanh", "may man", "tai loc", "phuoc bao"), ("#phuoclanh", "#duyenlanh")),
+    (("biet on", "tri an", "cam on"), ("#longbieton", "#songthien")),
+    (("nhan nhin", "chiu thiet", "thiet thoi", "hien lanh"), ("#nhannhin", "#songthien")),
+    (("khau nghiep", "loi noi", "im lang", "noi xau"), ("#khaunghiep", "#imlang")),
+    (("cha me", "me cha", "gia dinh", "con cai", "hieu thao"), ("#giadinh", "#hieuthao")),
+    (("kinh phap cu", "phap cu"), ("#kinhphapcu", "#trituephatday")),
+    (("ngu", "dem", "lo au", "met moi"), ("#nghephap", "#ngungon")),
+)
+
+
+def vi_buddhist_short_hashtags_for_text(value: str, limit: int = 5) -> list[str]:
+    folded = _fold_vi_for_guard(value)
+    selected: list[str] = ["#phatphap", "#loiphatday"]
+    for keywords, hashtags in VI_BUDDHIST_SHORT_HASHTAG_RULES:
+        if any(keyword in folded for keyword in keywords):
+            for hashtag in hashtags[:1]:
+                if hashtag not in selected:
+                    selected.append(hashtag)
+        if len(selected) >= limit - 1:
+            break
+    for fallback in ("#binhan", "#nhanqua", "#songthien"):
+        if len(selected) >= limit - 1:
+            break
+        if fallback not in selected:
+            selected.append(fallback)
+    if "#shorts" not in selected:
+        selected.append("#shorts")
+    return selected[:limit]
+
+
+def with_dynamic_vi_short_hashtags(description: str, context_text: str = "") -> str:
+    body = re.sub(r"#[\wÀ-ỹĐđ]+", "", str(description or ""), flags=re.UNICODE)
+    body = re.sub(r"[ \t]{2,}", " ", body)
+    body = re.sub(r"\n{3,}", "\n\n", body).strip(" \n\r\t-")
+    hashtags = vi_buddhist_short_hashtags_for_text(f"{context_text}\n{body}")
+    return f"{body}\n\n{' '.join(hashtags)}".strip() if body else " ".join(hashtags)
+
+
 def _is_banned_vi_short_hook(value: str) -> bool:
     folded = _fold_vi_for_guard(value)
     banned_prefixes = (
@@ -3547,11 +3602,16 @@ def _vi_short_hook_replacement(seed: str) -> str:
 def sanitize_vi_shorts_response(response_text: str) -> str:
     text = str(response_text or "")
     recent_titles = {_fold_vi_for_guard(title) for title in recent_vi_short_titles(120)}
+    title_value = ""
 
     def replace_title(match: re.Match[str]) -> str:
+        nonlocal title_value
         prefix, title = match.group(1), match.group(2).strip()
         if _is_banned_vi_short_hook(title) or _fold_vi_for_guard(title) in recent_titles:
-            return prefix + _vi_short_hook_replacement(title)
+            title = _vi_short_hook_replacement(title)
+            title_value = title
+            return prefix + title
+        title_value = title
         return match.group(0)
 
     text = re.sub(
@@ -3577,6 +3637,21 @@ def sanitize_vi_shorts_response(response_text: str) -> str:
             rest = first_part[1].strip() if len(first_part) > 1 else ""
             new_script = replacement + ((" " + rest) if rest else "")
             text = text[: script_match.start(2)] + new_script + text[script_match.end(2) :]
+    desc_match = re.search(
+        r"(?is)(DESCRIPTION:\s*)(.*?)(?=\n\s*(?:TITLE|THUMBNAIL_TEXT|SCRIPT|IMAGE_PROMPTS|THUMBNAIL_PROMPT)\s*:|$)",
+        text,
+    )
+    if desc_match:
+        context_text = "\n".join(
+            part
+            for part in (
+                title_value,
+                script_match.group(2).strip() if script_match else "",
+            )
+            if part
+        )
+        description = with_dynamic_vi_short_hashtags(desc_match.group(2).strip(), context_text)
+        text = text[: desc_match.start(2)] + description + text[desc_match.end(2) :]
     return text
 
 
@@ -4746,7 +4821,8 @@ def apply_twenty_min_vi_variation(prompt_text: str, prompt_name: str, variation:
                 [
                     "- 160 ky tu dau phai tom tat ro noi dau + gia tri video.",
                     "- Neu description cu/outline/timeline da co san noi dung cac muc se di qua, giu lai phan do va dat duoi khung 'Trong bai nghe nay...'; khong thay bang danh sach mau chung chung.",
-                    "- Ket thuc description bang dung bo hashtag nay, khong doi, khong them bot: #loiphatday #phatphap #gieobinhan #doivodinh #songtute #chualanhtamhon #tinhthuc #songanlac #nhanqua #phatphapmoingay #buongbo #annhien #phuocduc #loiphatdaymoidem #demkhongu",
+                    "- Ket thuc description bang 3-5 hashtag phu hop voi chu de video. Khong dung mot bo hashtag co dinh cho moi video.",
+                    "- Hashtag phai co 2 tag dinh vi niche (#phatphap, #loiphatday), 1-2 tag theo noi dung chinh nhu #nhanqua, #buongbo, #taman, #phuoclanh, #duyenlanh, #khaunghiep, #longbieton, va #shorts.",
                 ]
             )
         elif prompt_name == "seo":
@@ -4776,7 +4852,7 @@ def apply_twenty_min_vi_variation(prompt_text: str, prompt_name: str, variation:
             extra.extend(
                 [
                     "- Kiem tra title co noi dau/ham muon ro trong 45 ky tu dau va khong chung chung.",
-                    "- Kiem tra description mo dau manh, hashtag dung bo 15 cai, thumbnail text ngan gon va doc duoc tren mobile.",
+                    "- Kiem tra description mo dau manh, hashtag chi 3-5 cai va phai khop dung chu de, thumbnail text ngan gon va doc duoc tren mobile.",
                 ]
             )
 

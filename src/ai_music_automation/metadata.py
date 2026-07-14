@@ -47,6 +47,55 @@ def vietnamese_buddhist_short_description(title: str) -> str:
     )
 
 
+VI_BUDDHIST_SHORT_HASHTAG_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+    (("nhan qua", "nghiep", "bao ung", "gieo nhan"), ("#nhanqua", "#nghiepbao")),
+    (("buong bo", "oan trach", "nong gian", "khong chap", "bot kho"), ("#buongbo", "#botkho")),
+    (("tam an", "binh an", "an nhien", "an lac", "nhe long"), ("#taman", "#binhan")),
+    (("phuoc", "duyen lanh", "may man", "tai loc", "phuoc bao"), ("#phuoclanh", "#duyenlanh")),
+    (("biet on", "tri an", "cam on"), ("#longbieton", "#songthien")),
+    (("nhan nhin", "chiu thiet", "thiet thoi", "hien lanh"), ("#nhannhin", "#songthien")),
+    (("khau nghiep", "loi noi", "im lang", "noi xau"), ("#khaunghiep", "#imlang")),
+    (("cha me", "me cha", "gia dinh", "con cai", "hieu thao"), ("#giadinh", "#hieuthao")),
+    (("kinh phap cu", "phap cu"), ("#kinhphapcu", "#trituephatday")),
+    (("ngu", "dem", "lo au", "met moi"), ("#nghephap", "#ngungon")),
+)
+
+
+def fold_vietnamese(value: str) -> str:
+    text = unicodedata.normalize("NFD", str(value or ""))
+    text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+    text = text.replace("đ", "d").replace("Đ", "D").replace("Ä‘", "d").replace("Ä", "D")
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def vietnamese_buddhist_short_hashtags_for_text(value: str, limit: int = 5) -> list[str]:
+    folded = fold_vietnamese(value)
+    selected: list[str] = ["#phatphap", "#loiphatday"]
+    for keywords, hashtags in VI_BUDDHIST_SHORT_HASHTAG_RULES:
+        if any(keyword in folded for keyword in keywords):
+            for hashtag in hashtags[:1]:
+                if hashtag not in selected:
+                    selected.append(hashtag)
+        if len(selected) >= limit - 1:
+            break
+    for fallback in ("#binhan", "#nhanqua", "#songthien"):
+        if len(selected) >= limit - 1:
+            break
+        if fallback not in selected:
+            selected.append(fallback)
+    if "#shorts" not in selected:
+        selected.append("#shorts")
+    return selected[:limit]
+
+
+def ensure_vietnamese_buddhist_short_hashtags(description: str, title: str) -> str:
+    body = re.sub(r"#[\wÀ-ỹĐđ]+", "", str(description or ""), flags=re.UNICODE)
+    body = re.sub(r"[ \t]{2,}", " ", body)
+    body = re.sub(r"\n{3,}", "\n\n", body).strip(" \n\r\t-")
+    hashtags = vietnamese_buddhist_short_hashtags_for_text(f"{title}\n{body}")
+    return f"{body}\n\n{' '.join(hashtags)}".strip() if body else " ".join(hashtags)
+
+
 @dataclass(frozen=True)
 class VideoMetadata:
     title: str
@@ -109,6 +158,8 @@ def build_metadata(
         else:
             description = content_driven_short_description or description
         description = f"{content_driven_short_description or description}{suffix}"
+        if active_account in VIETNAMESE_BUDDHIST_ACCOUNTS:
+            description = ensure_vietnamese_buddhist_short_hashtags(description, values["track_title"])
 
     thumbnail_path = find_thumbnail(track, thumbnail_dir)
     title = fit_youtube_title(title_template.format(**values), video_type=video_type)
@@ -127,6 +178,7 @@ def build_metadata(
         category_id = str(override.get("category_id") or category_id)
     if video_type == "short" and active_account in VIETNAMESE_BUDDHIST_ACCOUNTS and looks_like_bolero_metadata(description):
         description = f"{vietnamese_buddhist_short_description(values['track_title'])}{suffix}"
+        description = ensure_vietnamese_buddhist_short_hashtags(description, values["track_title"])
     return VideoMetadata(
         title=title,
         description=description,

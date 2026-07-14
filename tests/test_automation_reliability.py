@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import tempfile
 import threading
@@ -18,6 +19,7 @@ from ai_music_automation.automation.logging import AutomationLogger
 from ai_music_automation.automation.model_client import ModelRequest, OllamaClient
 from ai_music_automation.job_store import JobStore
 from ai_music_automation.media_qa import inspect_media, inspect_subtitle
+from ai_music_automation.metadata import ensure_vietnamese_buddhist_short_hashtags
 from ai_music_automation.story_before_sleep import build_story_visual_bible, infer_character_gender_label
 from ai_music_automation.agents.story_writer import polish_adult_sleep_story_script, repair_complete_sleep_story_script
 from ai_music_automation.agents.story_planner import StoryPlan, validate_story_plan
@@ -78,6 +80,18 @@ class ReliabilityTests(unittest.TestCase):
             self.assertIsInstance(result, dict)
             self.assertIn("writer", result)
             self.assertFalse(list(Path(folder).glob("*.tmp")))
+
+    def test_buddhist_short_description_uses_dynamic_five_hashtags(self) -> None:
+        description = (
+            "Hay hoc cach buong bo oan trach de tam an hon.\n\n"
+            "#loiphatday #phatphap #gieobinhan #doivodinh #songtute #chualanhtamhon #nhanqua"
+        )
+        cleaned = ensure_vietnamese_buddhist_short_hashtags(description, "Buong Bo De Tam An")
+        hashtags = re.findall(r"#[\wÀ-ỹĐđ]+", cleaned)
+        self.assertEqual(len(hashtags), 5)
+        self.assertIn("#buongbo", hashtags)
+        self.assertIn("#taman", hashtags)
+        self.assertIn("#shorts", hashtags)
 
     def test_gender_inference_uses_dominant_character_signals(self) -> None:
         male_story = "Elias was a young man. He kept his clock. A woman waved once, then he returned home."
