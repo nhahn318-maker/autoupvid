@@ -29,6 +29,7 @@ from ai_music_automation.web import (
     build_long_chapter_continuation_prompt,
     long_chapter_overlap_ratio,
     merge_short_state_for_account,
+    repair_long_script_duplicate_units,
     sanitize_vi_shorts_response,
     scoped_short_state_for_account,
     _vi_short_hook_replacement,
@@ -173,6 +174,19 @@ class ReliabilityTests(unittest.TestCase):
         self.assertTrue(report["passed"])
         self.assertTrue(report["warning"])
         self.assertEqual(report["max_repeat"], 5)
+
+    def test_long_script_duplicate_repair_rewrites_repeated_openings(self) -> None:
+        repeated = "Con co bao gio tu hoi vi sao cuoc doi con nhu vay?"
+        text = "\n\n".join(
+            repeated + f" Phan rieng {index} co mot canh doi song va mot bai hoc Phat phap khac nhau."
+            for index in range(9)
+        )
+        before = analyze_long_script_duplicates(text)
+        repaired, changed = repair_long_script_duplicate_units(text, max_repeat=3)
+        after = analyze_long_script_duplicates(repaired)
+        self.assertGreater(changed, 0)
+        self.assertLess(after["max_repeat"], before["max_repeat"])
+        self.assertLessEqual(after["max_repeat"], 3)
 
     def test_long_chapter_overlap_detects_cross_chapter_copy(self) -> None:
         shared = "Trong đời sống hằng ngày, một lời nói thiếu tỉnh thức có thể làm người thân tổn thương rất lâu."

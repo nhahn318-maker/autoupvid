@@ -166,7 +166,7 @@ function renderJobs(jobs) {
 
 function mobileJobPipeline(job) {
   if (job.action === "story-before-sleep-auto") return ["Topic", "Plan", "Write", "Review", "Scenes", "Media", "QA", "Render", "Upload"];
-  if (job.action === "fullauto-long-start") return ["Outline", "Chapters", "Voice", "Render", "Upload"];
+  if (job.action === "fullauto-long-start") return ["Outline", "Chapters", "Review", "Rewrite", "Voice", "Render", "Upload"];
   if (job.action === "fullauto-20min-start") return ["Script", "Voice", "Render", "Upload"];
   if (job.action === "fullauto-start") return ["Script", "Voice", "Images", "Render", "Upload"];
   if ((job.action || "").includes("merge")) return ["Select", "Merge", "Metadata", "Upload"];
@@ -181,7 +181,7 @@ function mobilePipelineIndex(job, steps) {
   const groups = job.action === "story-before-sleep-auto"
     ? [["topic"], ["planner"], ["writer"], ["review"], ["scene", "prompt_optimizer"], ["voice", "image", "parallel_media"], ["qa"], ["render"], ["upload"]]
     : job.action === "fullauto-long-start"
-      ? [["outline"], ["chapter", "writing script"], ["voice", "tts"], ["render"], ["upload"]]
+      ? [["outline"], ["chapter", "writing script", "viet chuong"], ["qa", "review", "trung chuong", "duplicate"], ["rewrite", "viet lai"], ["voice", "tts"], ["render"], ["upload"]]
       : steps.map((step) => [step.toLowerCase()]);
   let found = Math.max(0, Math.min(steps.length - 1, Math.floor(Number(job.progress || 0) * steps.length / 100)));
   groups.forEach((keywords, index) => { if (keywords.some((keyword) => text.includes(keyword))) found = index; });

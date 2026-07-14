@@ -2988,6 +2988,30 @@ def configured_recovered_module(config):
                     f"max_repeat={report['max_repeat']}, opening_repeat={report['opening_repeat']}"
                     f"{' (warning)' if report.get('warning') else ''}.",
                 )
+            if not report["passed"] or report.get("warning"):
+                repaired_text = text
+                for attempt in range(1, 4):
+                    repaired_text, changed = repair_long_script_duplicate_units(repaired_text)
+                    repaired_report = analyze_long_script_duplicates(repaired_text)
+                    if current_job:
+                        log(
+                            current_job,
+                            "Long QA rewrite attempt "
+                            f"{attempt}: changed={changed}, "
+                            f"duplicate_ratio={repaired_report['duplicate_ratio']:.1%}, "
+                            f"max_repeat={repaired_report['max_repeat']}, "
+                            f"opening_repeat={repaired_report['opening_repeat']}."
+                        )
+                    if changed <= 0:
+                        break
+                    report = repaired_report
+                    text = repaired_text
+                    if report["passed"] and not report.get("warning"):
+                        if current_job:
+                            log(current_job, "Long QA rewrite passed; using repaired script for voice.")
+                        break
+                else:
+                    report = analyze_long_script_duplicates(text)
             if not report["passed"]:
                 raise RuntimeError(
                     "Long script QA failed before voice: "
@@ -3971,6 +3995,55 @@ def long_script_units(text: str, minimum_words: int = 8) -> list[str]:
             continue
         normalized.append(normalize_topic_text(value))
     return [unit for unit in normalized if unit]
+
+
+LONG_SCRIPT_REWRITE_LINES = [
+    "Ở một góc nhìn khác, bài học này trở nên gần gũi hơn khi ta nhìn vào chính những lựa chọn nhỏ trong ngày.",
+    "Có khi chỉ một khoảnh khắc dừng lại cũng đủ giúp con thấy rõ nhân lành mình có thể gieo ngay lúc này.",
+    "Trong đời sống thường ngày, chân lý ấy không nằm ở đâu xa mà hiện ra qua từng lời nói và từng ý nghĩ.",
+    "Nếu lắng lòng quan sát, con sẽ thấy mỗi biến cố đều đang nhắc mình quay về sống tỉnh thức hơn.",
+    "Bài học này có thể bắt đầu rất giản dị, từ cách con đối diện với một chuyện không vừa ý hôm nay.",
+    "Khi đem lời Phật soi vào đời thật, ta không cần tìm điều lớn lao mà chỉ cần sửa một thói quen nhỏ.",
+    "Có những lúc cuộc đời không đổi ngay, nhưng tâm mình có thể đổi cách nhìn để bớt khổ và bớt trách.",
+    "Từ một việc rất bình thường, con có thể nhận ra nhân quả đang vận hành âm thầm trong từng lựa chọn.",
+    "Điều đáng quý là ta vẫn còn cơ hội gieo lại một hạt giống thiện, dù hôm qua đã từng vụng về.",
+    "Nhìn chậm lại một chút, con sẽ thấy bình an không đến từ may rủi mà từ cách mình giữ thân, miệng và ý.",
+]
+
+
+def repair_long_script_duplicate_units(text: str, max_repeat: int = 3) -> tuple[str, int]:
+    """Rewrite repeated narratable sentences enough for QA to continue safely."""
+    parts = [
+        part.strip()
+        for part in re.split(r"(?<=[.!?…])\s+|(?:\n\s*){2,}", str(text or "").replace("\r\n", "\n").replace("\r", "\n"))
+        if part.strip()
+    ]
+    counts: Counter[str] = Counter()
+    for part in parts:
+        value = re.sub(r"\s+", " ", part).strip()
+        if count_text_words(value) >= 8:
+            unit = normalize_topic_text(value)
+            if unit:
+                counts[unit] += 1
+
+    seen: Counter[str] = Counter()
+    changed = 0
+    rewrite_index = 0
+    for index, original in enumerate(parts):
+        value = re.sub(r"\s+", " ", original).strip()
+        if count_text_words(value) < 8:
+            continue
+        unit = normalize_topic_text(value)
+        if not unit or counts[unit] <= max_repeat:
+            continue
+        seen[unit] += 1
+        if seen[unit] <= max_repeat:
+            continue
+        replacement = LONG_SCRIPT_REWRITE_LINES[rewrite_index % len(LONG_SCRIPT_REWRITE_LINES)]
+        rewrite_index += 1
+        parts[index] = replacement
+        changed += 1
+    return "\n\n".join(parts), changed
 
 
 def long_chapter_overlap_ratio(current_text: str, previous_chapters: list[str]) -> float:
