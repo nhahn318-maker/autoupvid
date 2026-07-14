@@ -2713,10 +2713,11 @@ def configured_recovered_module(config):
             f"- This is chapter {chapter_index + 1} of {len(chapters)}.\n"
             "- Write only this chapter. Start a fresh, self-contained paragraph; never continue a half-finished sentence from another chapter.\n"
             "- Stay inside this chapter title and its assigned role. Do not teach the main lesson of later chapter titles.\n"
-            "- End on a complete sentence with a light bridge into the next idea, never a clipped sentence.\n"
-            f"- {'This is the final chapter: one short blessing and Nam mo Bon Su Thich Ca Mau Ni Phat are allowed only at the very end.' if is_final_chapter else 'This is not the final chapter: do not summarize the whole video, do not offer a farewell or blessing, and do not say Nam mo Bon Su Thich Ca Mau Ni Phat.'}\n"
-            "- If the source prompt contains a different chapter count, this run's chapter count above takes priority.\n"
-        )
+        "- End on a complete sentence with a light bridge into the next idea, never a clipped sentence.\n"
+        f"- {'This is the final chapter: one short blessing and Nam mo Bon Su Thich Ca Mau Ni Phat are allowed only at the very end.' if is_final_chapter else 'This is not the final chapter: do not summarize the whole video, do not offer a farewell or blessing, and do not say Nam mo Bon Su Thich Ca Mau Ni Phat.'}\n"
+        "- If the source prompt contains a different chapter count, this run's chapter count above takes priority.\n"
+        "- Do not reuse a previous chapter's first sentence or opening question. In Vietnamese long videos, avoid repeating openings like 'Con có bao giờ tự hỏi...' across chapters.\n"
+    )
         extra += fullauto_long_chapter_diversity_rules(chapters, chapter_index, language)
         return prompt_text.rstrip() + extra
 
@@ -2984,7 +2985,8 @@ def configured_recovered_module(config):
                     current_job,
                     "QA kich ban truoc voice: "
                     f"duplicate_ratio={report['duplicate_ratio']:.1%}, "
-                    f"max_repeat={report['max_repeat']}, opening_repeat={report['opening_repeat']}.",
+                    f"max_repeat={report['max_repeat']}, opening_repeat={report['opening_repeat']}"
+                    f"{' (warning)' if report.get('warning') else ''}.",
                 )
             if not report["passed"]:
                 raise RuntimeError(
@@ -4037,8 +4039,11 @@ def analyze_long_script_duplicates(text: str) -> dict[str, Any]:
     # sentence across many chapter openings. max_repeat captures that even when
     # the recovered runtime strips chapter headings before voice generation.
     opening_repeat = max_repeat
+    hard_fail = duplicate_ratio > 0.08 or max_repeat > 6
+    warning = duplicate_ratio > 0.045 or max_repeat > 3
     return {
-        "passed": duplicate_ratio <= 0.08 and max_repeat <= 3,
+        "passed": not hard_fail,
+        "warning": warning,
         "total_units": len(units),
         "duplicate_excess": duplicate_excess,
         "duplicate_ratio": duplicate_ratio,

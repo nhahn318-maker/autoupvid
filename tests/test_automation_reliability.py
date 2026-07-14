@@ -156,6 +156,24 @@ class ReliabilityTests(unittest.TestCase):
         self.assertFalse(report["passed"])
         self.assertEqual(report["max_repeat"], 4)
 
+    def test_long_script_duplicate_qa_warns_on_moderate_reused_opening(self) -> None:
+        repeated = "Con co bao gio tu hoi vi sao cuoc doi con nhu vay?"
+        paragraphs = []
+        for index in range(5):
+            paragraphs.append(
+                repeated
+                + f" Cau chuyen rieng thu {index} ke ve mot nguoi trong gia dinh, mot loi noi, "
+                + "mot lua chon thien lanh va mot cach nhin nhan qua khac nhau trong doi song."
+            )
+        paragraphs.extend(
+            f"Doan rieng {index} noi ve mot canh sinh hoat, mot bai hoc va mot cach thuc hanh khong trung lap."
+            for index in range(80)
+        )
+        report = analyze_long_script_duplicates("\n\n".join(paragraphs))
+        self.assertTrue(report["passed"])
+        self.assertTrue(report["warning"])
+        self.assertEqual(report["max_repeat"], 5)
+
     def test_long_chapter_overlap_detects_cross_chapter_copy(self) -> None:
         shared = "Trong đời sống hằng ngày, một lời nói thiếu tỉnh thức có thể làm người thân tổn thương rất lâu."
         previous = [
