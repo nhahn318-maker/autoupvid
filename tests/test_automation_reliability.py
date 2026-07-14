@@ -20,7 +20,7 @@ from ai_music_automation.automation.model_client import ModelRequest, OllamaClie
 from ai_music_automation.job_store import JobStore
 from ai_music_automation.media_qa import inspect_media, inspect_subtitle
 from ai_music_automation.metadata import ensure_vietnamese_buddhist_short_hashtags
-from ai_music_automation.story_before_sleep import build_story_visual_bible, infer_character_gender_label
+from ai_music_automation.story_before_sleep import apply_story_visual_bible, build_story_visual_bible, infer_character_gender_label
 from ai_music_automation.agents.story_writer import polish_adult_sleep_story_script, repair_complete_sleep_story_script
 from ai_music_automation.agents.story_planner import StoryPlan, validate_story_plan
 from ai_music_automation.youtube_reporting import aggregate_reporting_csv, reporting_windows
@@ -102,6 +102,31 @@ class ReliabilityTests(unittest.TestCase):
         female_story = "Elara was a young woman. She carried her book. A man opened the gate for her."
         self.assertEqual(infer_character_gender_label(male_story.lower()), "male")
         self.assertEqual(infer_character_gender_label(female_story.lower()), "female")
+
+    def test_sleep_story_visual_bible_does_not_append_old_reference_memory_by_default(self) -> None:
+        story = StoryArtifact(
+            title="A Lighthouse Keeper's Wait",
+            prompt="Old visual direction mentions yellow dress, forest, cottage, letter, and clock.",
+            hook="If waiting has felt heavy, this lighthouse story may help.",
+            outline=["Silas follows a lantern through a lighthouse chamber."],
+            script=(
+                "Silas was an adult male lighthouse keeper with dark hair and a blue coat. "
+                "He held the lantern beside the stone window and walked down to the sea chamber. "
+                "The lantern showed him how to set down the need to hurry dawn."
+            ),
+            lesson="Rest can come from trusting the patient lantern.",
+        )
+        settings = {
+            "character_memory": "old reference character in a yellow dress with a clock",
+            "world_memory": "old meadow, forest, cottage, village world",
+        }
+        bible = apply_story_visual_bible(settings, story)
+        combined = f"{settings['character_memory']} {settings['world_memory']} {bible['story_character_identity_lock']}".lower()
+        self.assertIn("lighthouse", settings["world_memory"].lower())
+        self.assertIn("lantern", settings["character_memory"].lower())
+        self.assertNotIn("yellow dress", combined)
+        self.assertNotIn("cottage", settings["world_memory"].lower())
+        self.assertNotIn("same outfit/accessory palette: lantern", combined)
 
     def test_duplicate_images_are_detected(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
@@ -246,6 +271,18 @@ class ReliabilityTests(unittest.TestCase):
         final = " At last, Mara set down the key. You may rest now, safe in the quiet light."
         violations = content_gate_violations(early + tail + final)
         self.assertTrue(any("sleep ending appears before" in item for item in violations))
+
+    def test_sleep_story_polish_replaces_abstract_filler_phrases(self) -> None:
+        script = (
+            "Mara felt deep peace and profound stillness. "
+            "The slow unfolding of time gave her quiet acceptance."
+        )
+        polished = polish_adult_sleep_story_script(script)
+        lowered = polished.lower()
+        self.assertNotIn("deep peace", lowered)
+        self.assertNotIn("profound stillness", lowered)
+        self.assertNotIn("quiet acceptance", lowered)
+        self.assertIn("hands loosening", lowered)
 
     def test_long_continuation_prompt_is_compact_enough_for_local_model(self) -> None:
         original = "YÊU CẦU CHƯƠNG " + ("nội dung yêu cầu " * 900)

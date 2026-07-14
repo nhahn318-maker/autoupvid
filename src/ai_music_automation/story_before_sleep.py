@@ -2283,8 +2283,9 @@ def build_story_visual_bible(story: Any, settings: dict[str, Any] | None = None)
 
 def apply_story_visual_bible(settings: dict[str, Any], story: Any) -> dict[str, str]:
     bible = build_story_visual_bible(story, settings)
-    base_character = str(settings.get("character_memory") or "").strip()
-    base_world = str(settings.get("world_memory") or "").strip()
+    preserve_base = bool(settings.get("preserve_base_visual_memory", False))
+    base_character = str(settings.get("character_memory") or "").strip() if preserve_base else ""
+    base_world = str(settings.get("world_memory") or "").strip() if preserve_base else ""
     settings["character_memory"] = " ".join(part for part in [bible["story_character_memory"], base_character] if part)
     settings["character_identity_lock"] = bible["story_character_identity_lock"]
     settings["world_memory"] = " ".join(part for part in [bible["story_world_memory"], base_world] if part)
@@ -2488,8 +2489,6 @@ def infer_character_outfit_label(lowered: str) -> str:
         "apron",
         "dress",
         "pajamas",
-        "lantern",
-        "blue lantern",
         "willow leaf map",
     ]
     found = [word for word in outfit_words if re.search(rf"\b{re.escape(word)}\b", lowered)]

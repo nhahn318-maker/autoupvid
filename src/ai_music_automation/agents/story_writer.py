@@ -499,6 +499,12 @@ def polish_adult_sleep_story_script(script: str) -> str:
         r"\b[Ll]ittle one\b": "dear listener",
         r"\bchildren's-book texture\b": "illustrated storybook texture",
         r"\bchildren's book texture\b": "illustrated storybook texture",
+        r"\b[Dd]eep peace\b": "a slower breath",
+        r"\b[Pp]rofound stillness\b": "the room settling around them",
+        r"\b[Qq]uiet acceptance\b": "their hands loosening around the old worry",
+        r"\b[Ss]low unfolding of time\b": "the minutes opening like pages",
+        r"\b[Gg]entle rhythm\b": "the small, steady sound nearby",
+        r"\b[Dd]eep acceptance\b": "the first easy breath after letting go",
     }
     polished = script
     for pattern, replacement in replacements.items():
