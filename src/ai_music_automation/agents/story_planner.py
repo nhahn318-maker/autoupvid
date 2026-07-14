@@ -14,6 +14,13 @@ class StoryPlan:
     outline: list[str] = field(default_factory=list)
     ending: str = ""
     lesson: str = ""
+    protagonist: str = ""
+    emotional_burden: str = ""
+    concrete_memory_object: str = ""
+    magical_mystery: str = ""
+    micro_journey: str = ""
+    choice_action: str = ""
+    final_sleep_image: str = ""
 
 
 @dataclass(frozen=True)
@@ -45,13 +52,21 @@ class StoryPlannerAgent(BaseAgent[StoryPlannerInput, StoryPlan]):
         outline = as_str_list(data.get("outline"))
         if not outline:
             outline = fallback_outline(payload.topic)
-        return StoryPlan(
+        plan = StoryPlan(
             title=str(data.get("title") or payload.topic).strip()[:100],
             hook=str(data.get("hook") or outline[0]).strip(),
             outline=outline,
             ending=str(data.get("ending") or "The listener is left with a peaceful image and a slower breath.").strip(),
             lesson=str(data.get("lesson") or "It is safe to soften and let the day go.").strip(),
+            protagonist=str(data.get("protagonist") or "").strip(),
+            emotional_burden=str(data.get("specific_emotional_burden") or data.get("emotional_burden") or "").strip(),
+            concrete_memory_object=str(data.get("concrete_memory_object") or "").strip(),
+            magical_mystery=str(data.get("small_magical_mystery") or data.get("magical_mystery") or "").strip(),
+            micro_journey=str(data.get("micro_journey") or "").strip(),
+            choice_action=str(data.get("choice_action") or "").strip(),
+            final_sleep_image=str(data.get("final_sleep_image") or "").strip(),
         )
+        return validate_story_plan(plan, payload.topic)
 
 
 def build_plan_prompt(payload: StoryPlannerInput, niche: str) -> str:
@@ -66,6 +81,8 @@ This must be a real bedtime story with a memorable emotional point, not a guided
 and not only a scenic description. Build a clear gentle narrative arc:
 - a named main character with one specific inner flaw or burden
 - an adult emotional wound or tired feeling the listener can recognize
+- a specific premise anchor: protagonist, emotional burden, concrete memory/object,
+  small magical mystery, micro-journey, choice/action, and final sleep image
 - a gentle fantasy-comic premise with one visually memorable magical rule
 - a peaceful but concrete setting
 - a small wish, question, secret, promise, or emotional need
@@ -107,6 +124,13 @@ Return only JSON:
 {{
   "title": "final title",
   "hook": "one opening sentence, 18-32 words, speaking directly to a tired adult listener with If you have ever..., Have you ever..., or If you have been carrying...",
+  "protagonist": "named adult protagonist with a simple visual identity",
+  "specific_emotional_burden": "one concrete adult burden, not an abstract mood",
+  "concrete_memory_object": "one drawable memory/person/object/promise behind the burden",
+  "small_magical_mystery": "one calm curiosity hook tied to the object or setting",
+  "micro_journey": "room/place -> threshold -> discovery -> choice -> return/rest",
+  "choice_action": "one visible action that shows the lesson",
+  "final_sleep_image": "the final drawable image before the adult sleep sign-off",
   "outline": [
     "beat 1 DESCRIPTION: SET PIECE, ACTION, OBJECT, LISTENER QUESTION - open with an adult emotional promise, then introduce the named character and the specific quiet hurt",
     "beat 2 DISCOVERY: SET PIECE, ACTION, OBJECT, LISTENER QUESTION - the first magical invitation opens a visually different location",
@@ -133,3 +157,37 @@ def fallback_outline(topic: str) -> list[str]:
         "Let the character make a kind choice and learn a clear lesson through the consequence of that choice.",
         "Show what changed, then resolve with home, safety, stillness, and sleep coming closer.",
     ]
+
+
+def validate_story_plan(plan: StoryPlan, topic: str) -> StoryPlan:
+    """Ensure the writer receives concrete story anchors, not only mood guidance."""
+    protagonist = plan.protagonist or "a named adult protagonist"
+    emotional_burden = plan.emotional_burden or "one specific tender burden connected to the topic"
+    concrete_memory_object = plan.concrete_memory_object or "one drawable memory object, promise, or person"
+    magical_mystery = plan.magical_mystery or "one small magical mystery tied to that object"
+    micro_journey = plan.micro_journey or "a calm path from familiar room to threshold, discovery, choice, and rest"
+    choice_action = plan.choice_action or "one small irreversible gesture that shows the lesson"
+    final_sleep_image = plan.final_sleep_image or "the protagonist resting beside the changed object"
+    outline = list(plan.outline or fallback_outline(topic))
+    premise_line = (
+        "PREMISE LOCK: "
+        f"protagonist={protagonist}; burden={emotional_burden}; "
+        f"memory/object={concrete_memory_object}; mystery={magical_mystery}; "
+        f"journey={micro_journey}; choice={choice_action}; final image={final_sleep_image}."
+    )
+    if not any("PREMISE LOCK:" in item for item in outline):
+        outline.insert(0, premise_line)
+    return StoryPlan(
+        title=plan.title,
+        hook=plan.hook,
+        outline=outline,
+        ending=plan.ending,
+        lesson=plan.lesson,
+        protagonist=protagonist,
+        emotional_burden=emotional_burden,
+        concrete_memory_object=concrete_memory_object,
+        magical_mystery=magical_mystery,
+        micro_journey=micro_journey,
+        choice_action=choice_action,
+        final_sleep_image=final_sleep_image,
+    )

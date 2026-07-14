@@ -35,7 +35,7 @@ class StoryWriterAgent(BaseAgent[StoryWriterInput, StoryArtifact]):
                     "target_minutes": payload.target_minutes,
                     "reference_style": payload.reference_style,
                     "model": context.settings.get("ollama_model") or context.settings.get("model"),
-                    "prompt_version": context.settings.get("story_prompt_version") or 11,
+                    "prompt_version": context.settings.get("story_prompt_version") or 12,
                 },
             )
             cached = context.cache.read_json(cache_key)
@@ -131,6 +131,12 @@ Rules:
 - Long-form retention structure: description -> discovery -> small mystery -> discovery -> memory ->
   new room/place -> new object -> another revelation -> kind choice -> sleep resolution.
 - Every 3-5 minutes, something visible should change: a new clue, room, object state, helper, memory, or revelation.
+- Treat any PREMISE LOCK in the creative direction as the story spine. The story must make those anchors visible:
+  protagonist, emotional burden, concrete memory/object, magical mystery, journey, choice action, and final image.
+- Write with concrete tenderness, not abstract calmness. Every emotional idea must be shown through a small
+  physical detail, memory, object, gesture, sound, or place.
+- The listener should be able to summarize the story in one sentence: who carried what burden, what object
+  changed, what was discovered, and what small action allowed rest.
 - Each story must feel meaningfully different from previous stories: change the setting, symbolic object,
   helper, emotional wound, and magical rule. Do not keep returning to the same moon meadow, cottage path,
   lantern, teacup, clockmaker, or lost-light structure unless the title specifically asks for it.
@@ -177,7 +183,11 @@ Rules:
   silence, or healing; show it through hands loosening, a letter being folded, a cup being set down,
   a window being opened, a light being shared, or a character choosing not to clutch a memory.
 - Avoid repeating the same mood words too often, especially: quiet, silence, soft, gentle, moonlight,
-  stillness, heavy, warm, peaceful. Use concrete sensory details instead.
+  stillness, heavy, warm, peaceful, deep, profound, acceptance, waiting, slow, glow. Use concrete sensory
+  details instead.
+- Avoid generic phrases like "deep peace", "profound stillness", "quiet acceptance", "slow unfolding",
+  or "gentle rhythm" unless the sentence also contains a fresh concrete image or action.
+- Do not explain the lesson repeatedly. State it through one earned action near the end.
 - Avoid ending the story early. Words such as "fell asleep", "drifted into sleep", "rest now",
   or "you may rest" should be reserved for the final paragraph. Before then, use "settled", "paused",
   "breathed more easily", or "rested in the moment".
@@ -273,12 +283,16 @@ Rules:
 - Directly address the listener only in the opening hook and final sleep sign-off.
 - Keep gentle fantasy storybook/comic wonder: visible magical rule, charming object, distinct set pieces.
 - Every chapter must include visible actions and specific objects an illustrator can draw.
+- Every chapter must advance the premise with one soft reveal: a new clue, changed object, memory detail,
+  or clearer emotional understanding. Do not only change scenery.
 - Every chapter must introduce a visibly different set piece, object state, or action from previous chapters.
 - Do not spend the whole chapter in one window, one room, one repeated image, or one repeated realization.
 - Keep the same main character profile and symbolic object across chapters.
 - Avoid danger, villains, chase, combat, horror, panic, or loud tension.
 - Avoid headings, markdown, bullet points, chapter labels, and timestamps.
 - Avoid repeating generic mood words; use concrete sensory details and action.
+- Avoid abstract filler such as "deep peace", "profound stillness", "quiet acceptance", or "slow unfolding"
+  unless it is paired with a new physical detail or gesture.
 - Chapter 1 only must start with a direct adult hook like "If you have been carrying...".
 - Do not repeat the opening hook after chapter 1.
 - Do not use "You may rest now" or any final sleep sign-off until chapter {chapter_count}.

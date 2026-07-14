@@ -20,6 +20,7 @@ from ai_music_automation.job_store import JobStore
 from ai_music_automation.media_qa import inspect_media, inspect_subtitle
 from ai_music_automation.story_before_sleep import build_story_visual_bible, infer_character_gender_label
 from ai_music_automation.agents.story_writer import polish_adult_sleep_story_script, repair_complete_sleep_story_script
+from ai_music_automation.agents.story_planner import StoryPlan, validate_story_plan
 from ai_music_automation.youtube_reporting import aggregate_reporting_csv, reporting_windows
 from ai_music_automation.web import (
     analyze_long_script_duplicates,
@@ -159,6 +160,7 @@ class ReliabilityTests(unittest.TestCase):
                     "story_structure": 88,
                     "retention": 72,
                     "psychology": 90,
+                    "emotional_specificity": 66,
                     "sleep_quality": 94,
                     "visual_variety": 80,
                     "ai_repetition": 68,
@@ -170,7 +172,31 @@ class ReliabilityTests(unittest.TestCase):
         review = parse_review_response(response, 82)
         self.assertTrue(review.passed)
         self.assertEqual(review.subscores["retention"], 72)
-        self.assertIn("Weakest: ai_repetition=68, retention=72", review.notes[0])
+        self.assertIn("Weakest: emotional_specificity=66, ai_repetition=68", review.notes[0])
+
+    def test_sleep_story_plan_validator_adds_concrete_premise_lock(self) -> None:
+        plan = StoryPlan(
+            title="A Lighthouse Keeper's Wait",
+            hook="If you have been carrying the ache of waiting, this story may help you rest.",
+            outline=["beat 1 DESCRIPTION: lighthouse window and lantern."],
+            ending="The keeper rests by the lantern.",
+            lesson="Waiting can become tender when it is shared with memory.",
+        )
+        repaired = validate_story_plan(plan, "lighthouse")
+        self.assertIn("PREMISE LOCK:", repaired.outline[0])
+        self.assertTrue(repaired.concrete_memory_object)
+        self.assertTrue(repaired.choice_action)
+
+    def test_sleep_story_gate_catches_deep_sleep_before_final_section(self) -> None:
+        early = (
+            "If you have been carrying an old promise, this story may help you rest. "
+            "Mara kept a brass key beside the window and remembered the cup her friend had saved. "
+            "She drifted into a deep and restorative sleep. "
+        )
+        tail = " ".join(["The lantern showed another room and she followed the path."] * 80)
+        final = " At last, Mara set down the key. You may rest now, safe in the quiet light."
+        violations = content_gate_violations(early + tail + final)
+        self.assertTrue(any("sleep ending appears before" in item for item in violations))
 
     def test_long_continuation_prompt_is_compact_enough_for_local_model(self) -> None:
         original = "YÊU CẦU CHƯƠNG " + ("nội dung yêu cầu " * 900)
@@ -314,7 +340,7 @@ class ReliabilityTests(unittest.TestCase):
                     "script": story.script,
                     "threshold": 86.0,
                     "model": "gemma4:e2b",
-                    "prompt_version": 5,
+                    "prompt_version": 6,
                     "multi_judge_review": False,
                     "multi_judge_min_words": 1600,
                     "hard_gate_version": 6,

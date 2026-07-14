@@ -40,7 +40,7 @@ class StoryReviewerAgent(BaseAgent[StoryArtifact, StoryReview]):
                     "script": payload.script,
                     "threshold": threshold,
                     "model": context.settings.get("ollama_model") or context.settings.get("model"),
-                    "prompt_version": context.settings.get("review_prompt_version") or 5,
+                    "prompt_version": context.settings.get("review_prompt_version") or 6,
                     "multi_judge_review": bool(context.settings.get("multi_judge_review", True)),
                     "multi_judge_min_words": int(context.settings.get("multi_judge_min_words") or 1600),
                     "hard_gate_version": 6,
@@ -190,12 +190,14 @@ def build_review_prompt(story: StoryArtifact, threshold: float) -> str:
     return f"""You are a strict but gentle editor for a bedtime story YouTube channel.
 
 Review this narration script for:
-Act as five independent judges, then combine the score:
+Act as six independent judges, then combine the score:
 1. Story Structure Judge: real narrative arc, continuity, cause/effect, no reset between scenes.
 2. Retention Judge: first-30-second hook, curiosity thread, new discovery every few minutes.
 3. Psychology Judge: concrete adult wound, memory, emotional payoff, no generic healing lecture.
 4. Sleep Quality Judge: calm tone, low stakes, no panic, no harsh wording, adult sleep ending.
 5. Visual Variety Judge: enough distinct set pieces, objects, actions, and imageable moments.
+6. Emotional Specificity Judge: concrete burden, named memory/person/object/promise/regret, and a story
+   the listener can summarize in one sentence.
 
 Target long-form retention structure:
 description -> discovery -> small mystery -> discovery -> memory -> new room/place ->
@@ -207,6 +209,9 @@ Important:
 - A poetic opening that does not speak to a tired adult listener's feeling must score below {threshold:g}.
 - A story with only an abstract hurt, but no concrete memory such as a waiting cup, unsent letter,
   broken promise, or unspoken apology, must score below {threshold:g}.
+- A story whose emotional problem is only "waiting", "uncertainty", "acceptance", or "peace" without
+  a concrete person, object, remembered moment, promise, or regret must score below {threshold:g}.
+- A story where repeated abstractions replace plot events must score below {threshold:g}.
 - A story with no clear lesson, or only a generic lesson like "be peaceful", must score below {threshold:g}.
 - A story where the main character does not make a meaningful gentle choice must score below {threshold:g}.
 - A story that uses "little one", "my dear child", or reads like content for kids must score below {threshold:g}.
@@ -228,6 +233,7 @@ Return only JSON with this shape:
     "story_structure": 0-100,
     "retention": 0-100,
     "psychology": 0-100,
+    "emotional_specificity": 0-100,
     "sleep_quality": 0-100,
     "visual_variety": 0-100,
     "ai_repetition": 0-100
@@ -249,9 +255,10 @@ def build_specialist_review_prompt(story: StoryArtifact, threshold: float, focus
 Check causal continuity, a concrete goal or burden, discoveries every few minutes,
 distinct locations and objects, no reset between scenes, no early ending, and a visible emotional payoff."""
     else:
-        rubric = """Judge only adult psychology, sleep suitability, and visual variety.
+        rubric = """Judge only adult psychology, emotional specificity, sleep suitability, and visual variety.
 Check for a concrete memory rather than generic healing language, an earned lesson shown through action,
-calm low stakes, no child positioning, limited repeated mood words, and at least six drawable set pieces."""
+calm low stakes, no child positioning, limited repeated mood words, at least six drawable set pieces, and
+a burden tied to a specific person, object, promise, or regret."""
     return f"""You are an independent specialist judge for an adult bedtime-story channel.
 
 {rubric}
@@ -264,6 +271,7 @@ Be strict and do not rewrite the story. Return only JSON:
     "story_structure": 0-100,
     "retention": 0-100,
     "psychology": 0-100,
+    "emotional_specificity": 0-100,
     "sleep_quality": 0-100,
     "visual_variety": 0-100,
     "ai_repetition": 0-100
@@ -312,6 +320,7 @@ def parse_subscores(value: Any) -> dict[str, float]:
         "story_structure",
         "retention",
         "psychology",
+        "emotional_specificity",
         "sleep_quality",
         "visual_variety",
         "ai_repetition",
@@ -492,7 +501,7 @@ def content_gate_violations(script: str) -> list[str]:
 
     sleep_markers = list(
         re.finditer(
-            r"\b(?:drift(?:ed|ing)?\s+(?:toward|into)\s+sleep|fell asleep|"
+            r"\b(?:drift(?:ed|ing)?\s+(?:toward|into)\s+(?:a\s+)?(?:deep\s+and\s+restorative\s+)?sleep|fell asleep|"
             r"sink(?:ing)?\s+into\s+(?:rest|sleep)|rest now|you may rest now|carried .*? toward sleep)\b",
             lowered,
         )
@@ -516,6 +525,13 @@ MEMORY_EVENT_RE = re.compile(
     r"visited|shared|gave|received|heard|kept|worked|working|racing|pushed|watched|watching|stood|standing|"
     r"adjusted|forced|held|carried|lost|found|opened|closed|placed|offered|folded|"
     r"refused|forgot|remembered)\b",
+    flags=re.I,
+)
+EMOTIONAL_ANCHOR_RE = re.compile(
+    r"\b(letter|cup|chair|window|promise|apology|photograph|photo|ring|shawl|coat|"
+    r"ticket|key|book|note|map|lantern|bell|seed|driftwood|shell|teacup|tea|"
+    r"wife|husband|mother|father|sister|brother|friend|neighbor|teacher|childhood|"
+    r"regret|unsent|unspoken|not kept|left behind|saved for|waited for)\b",
     flags=re.I,
 )
 MYSTERY_CUE_RE = re.compile(
@@ -620,6 +636,9 @@ def heuristic_review(story: StoryArtifact, threshold: float) -> StoryReview:
     if not has_concrete_memory(story.script):
         score -= 12
         notes.append("Story lacks one concrete emotional memory behind the burden.")
+    if not has_specific_emotional_anchor(story.script):
+        score -= 12
+        notes.append("Story's emotional burden is too abstract; it needs a concrete person, object, promise, or regret.")
     if re.search(r"\b(little one|my dear child|sleep now,\s*little one|children's content)\b", story.script, flags=re.I):
         score -= 20
         notes.append("Script contains child-positioning language.")
@@ -684,6 +703,7 @@ def heuristic_subscores(
             ),
         ),
         "psychology": 92.0 if has_concrete_memory(script) else 62.0,
+        "emotional_specificity": emotional_specificity_score(script),
         "sleep_quality": 64.0 if early_sleep_signoff_count(script) else 92.0,
         "visual_variety": min(100.0, max(40.0, progression_score * 12.0)),
         "ai_repetition": max(45.0, 96.0 - repetition_penalty * 2.0),
@@ -862,11 +882,39 @@ def has_concrete_memory(script: str) -> bool:
     return has_concrete_memory_role(sentences)
 
 
+def has_specific_emotional_anchor(script: str) -> bool:
+    text = script or ""
+    sentences = [item.strip() for item in re.split(r"(?<=[.!?])\s+", text) if item.strip()]
+    if any(MEMORY_CUE_RE.search(sentence) and EMOTIONAL_ANCHOR_RE.search(sentence) for sentence in sentences):
+        return True
+    if re.search(r"\b[A-Z][a-z]{2,}\b", text) and EMOTIONAL_ANCHOR_RE.search(text):
+        action_hits = len(re.findall(r"\b(kept|saved|placed|folded|opened|carried|held|left|offered|shared|returned|set down)\b", text, flags=re.I))
+        return action_hits >= 2
+    return False
+
+
+def emotional_specificity_score(script: str) -> float:
+    score = 45.0
+    if strong_adult_hook(script):
+        score += 10
+    if has_concrete_memory(script):
+        score += 20
+    if has_specific_emotional_anchor(script):
+        score += 20
+    action_hits = len(re.findall(r"\b(placed|folded|opened|carried|held|offered|shared|set down|loosened|left|returned)\b", script or "", flags=re.I))
+    if action_hits >= 4:
+        score += 5
+    return max(35.0, min(100.0, score))
+
+
 def repeated_mood_word_penalty(script: str) -> int:
     words = re.findall(r"[a-z']+", (script or "").lower())
     if not words:
         return 0
-    watched = {"quiet", "silence", "soft", "gentle", "moonlight", "stillness", "heavy", "warm", "peaceful"}
+    watched = {
+        "quiet", "silence", "soft", "gentle", "moonlight", "stillness", "heavy", "warm", "peaceful",
+        "deep", "profound", "acceptance", "waiting", "slow", "glow",
+    }
     total = sum(1 for word in words if word in watched)
     ratio = total / max(1, len(words))
     if total >= 55 or ratio > 0.045:

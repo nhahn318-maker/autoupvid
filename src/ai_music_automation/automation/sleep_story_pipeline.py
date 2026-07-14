@@ -754,10 +754,25 @@ Sleepu Stories benchmark to follow as reusable standards, not copied content:
 
 def build_writer_prompt(source_prompt: str, plan) -> str:
     outline = "\n".join(f"- {item}" for item in plan.outline)
+    premise = "\n".join(
+        f"{label}: {value}"
+        for label, value in (
+            ("Protagonist", getattr(plan, "protagonist", "")),
+            ("Specific emotional burden", getattr(plan, "emotional_burden", "")),
+            ("Concrete memory/object", getattr(plan, "concrete_memory_object", "")),
+            ("Small magical mystery", getattr(plan, "magical_mystery", "")),
+            ("Micro-journey", getattr(plan, "micro_journey", "")),
+            ("Choice/action", getattr(plan, "choice_action", "")),
+            ("Final sleep image", getattr(plan, "final_sleep_image", "")),
+        )
+        if str(value or "").strip()
+    )
     return f"""{source_prompt}
 
 Story plan:
 Hook: {plan.hook}
+Premise validator:
+{premise or "Use the outline premise lock to keep the story concrete."}
 Outline:
 {outline}
 Ending: {plan.ending}
@@ -774,9 +789,10 @@ Rewrite requirement from quality judges:
 
 If the notes include component scores, focus the revision on the weakest components first.
 For example: weak retention means add a clearer curiosity thread and visible beat changes;
-weak psychology means make the emotional memory more concrete; weak visual variety means
-add distinct drawable set pieces; weak AI repetition means replace repeated mood words with
-specific objects, textures, actions, and places. Do not force a fixed motif or object.
+weak psychology means make the emotional memory more concrete; weak emotional specificity means
+add one named person/object/promise/regret and show it through a small physical gesture; weak visual
+variety means add distinct drawable set pieces; weak AI repetition means replace repeated mood words
+with specific objects, textures, actions, and places. Do not force a fixed motif or object.
 
 Before writing, obey this long-form sequence:
 1. Description: establish character, setting, object, and adult emotional promise.
